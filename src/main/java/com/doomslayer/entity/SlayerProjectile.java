@@ -20,7 +20,7 @@ import net.minecraftforge.network.NetworkHooks;
 public class SlayerProjectile extends Projectile {
     private static final EntityDataAccessor<Integer> STYLE = SynchedEntityData.defineId(SlayerProjectile.class, EntityDataSerializers.INT);
     public float damage = 6; public int age2, pierceLeft;
-    private boolean init;
+    private final java.util.Set<Integer> hitIds = new java.util.HashSet<>();
     /** free scratch values for ProjStyle hooks */
     public int aux; public Vec3 auxVec;
 
@@ -36,7 +36,7 @@ public class SlayerProjectile extends Projectile {
     @Override
     protected boolean canHitEntity(Entity e) {
         if (!(e instanceof LivingEntity le) || !(getOwner() instanceof SlayerEntity o)) return false;
-        return Combat.isFoe(o, le) && super.canHitEntity(e);
+        return !hitIds.contains(e.getId()) && Combat.isFoe(o, le) && super.canHitEntity(e);
     }
 
     @Override
@@ -59,7 +59,7 @@ public class SlayerProjectile extends Projectile {
         HitResult hit = ProjectileUtil.getHitResultOnMoveVector(this, this::canHitEntity);
         if (!level().isClientSide) {
             if (hit.getType() == HitResult.Type.ENTITY) {
-                Entity e = ((EntityHitResult) hit).getEntity();
+                Entity e = ((EntityHitResult) hit).getEntity(); hitIds.add(e.getId());
                 if (getOwner() instanceof SlayerEntity o && e instanceof LivingEntity le) Combat.damage(o, le, damage);
                 impact(hit.getLocation(), e);
                 if (pierceLeft-- > 0) { /* continue */ } else { discard(); return; }

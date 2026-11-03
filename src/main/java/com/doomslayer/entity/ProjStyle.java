@@ -51,7 +51,7 @@ public class ProjStyle {
     public static final ProjStyle ARROW = make().color(0xdddddd).size(0.25f).life(80).gravity(0.02).trail(ParticleTypes.CRIT);
     public static final ProjStyle ICE = make().color(0x99e8ff).size(0.5f).life(60).explode(3f).trail(ParticleTypes.SNOWFLAKE);
 
-    static void defaultImpact(SlayerProjectile p, Vec3 pos, Entity hit) {
+    public static void defaultImpact(SlayerProjectile p, Vec3 pos, Entity hit) {
         ServerLevel l = (ServerLevel) p.level();
         ProjStyle s = p.style();
         if (s.explodeRadius > 0) {
