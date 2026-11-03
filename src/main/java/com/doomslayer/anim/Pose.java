@@ -20,7 +20,7 @@ public class Pose {
     public Pose aim2(float pitch, float recoil) {
         rArmX = -1.5708f + pitch - recoil * 0.25f; lArmX = -1.5708f + pitch - recoil * 0.2f;
         rArmY = -0.15f; lArmY = 0.45f; rArmZ = 0; lArmZ = 0;
-        bodyX += recoil * 0.12f; headX -= recoil * 0.05f;
+        bodyX -= recoil * 0.12f; headX += recoil * 0.05f;
         return this;
     }
 }

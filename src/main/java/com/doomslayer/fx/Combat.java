@@ -72,14 +72,14 @@ public final class Combat {
     // ---- aiming / shooting ----
     /** point in front of the slayer at the gun: fwd along facing, side (+ = right), up */
     public static Vec3 muzzle(SlayerEntity s, double fwd, double side, double up) {
-        Vec3 look = s.getViewVector(1f), right = look.cross(new Vec3(0, 1, 0)).normalize();
+        Vec3 look = s.getViewVector(1f), right = new Vec3(-look.z, 0, look.x); right = right.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : right.normalize();
         return s.getEyePosition().add(look.scale(fwd)).add(right.scale(side)).add(0, up - 0.2, 0);
     }
     public static Vec3 dirTo(Vec3 from, LivingEntity t, double spread, java.util.Random r) {
         Vec3 d = t.position().add(0, t.getBbHeight() * 0.55, 0).subtract(from).normalize();
         return d.add(r.nextGaussian() * spread, r.nextGaussian() * spread, r.nextGaussian() * spread).normalize();
     }
-    public static Vec3 dirTo(SlayerEntity s, LivingEntity t, double spread) { return dirTo(muzzle(s, 0.8, -0.3, 0), t, spread, new java.util.Random(s.getRandom().nextLong())); }
+    public static Vec3 dirTo(SlayerEntity s, LivingEntity t, double spread) { return dirTo(muzzle(s, 0.8, 0.3, 0), t, spread, new java.util.Random(s.getRandom().nextLong())); }
 
     /** Instant bullet. Hits the first foe along the ray (pierce = how many extra foes). Draws a tracer. Returns number of foes hit. */
     public static int hitscan(SlayerEntity s, Vec3 from, Vec3 dir, double range, float dmg, int pierce, int tracerRgb) {
