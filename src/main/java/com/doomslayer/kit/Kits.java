@@ -17,6 +17,26 @@ public final class Kits {
             new DarkAgesSlayer(),
             new Doom2005Grimm(),
             new BrutalDoomMarine(),
-            new DoomRpgMarine()
+            new DoomRpgMarine(),
+            new EntropyZeroBadCop(),
+            new EntropyZero2BadCop(),
+            new EntropyZero2CloneCop(),
+            new HalfLifeAdrian(),
+            new HalfLifeGordon(),
+            new HalfLife2Gordon(),
+            new HaloCeChief(),
+            new Halo2Chief(),
+            new Halo2Arbiter(),
+            new Halo3Chief(),
+            new Halo3Arbiter(),
+            new Halo3OdstRookie(),
+            new Halo3OdstBuck(),
+            new HaloReachNobleSix(),
+            new Halo4Chief(),
+            new Halo5Chief(),
+            new Halo5Locke(),
+            new HaloInfiniteChief(),
+            new HaloWarsForge(),
+            new HaloSpartanAssaultPalmer()
     );
 }

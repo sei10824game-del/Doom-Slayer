@@ -24,3 +24,13 @@ Characters are PLAYER-ALIGNED mobs (`SlayerEntity`): they follow the owner, hunt
 
 ## Verify
 `./gradlew compileJava` (needs JAVA_HOME=/opt/jdk17/jdk-17.0.21+9). Fix all compile errors in your file. Do not run the game client.
+
+## Known framework notes (read before coding)
+* Torso pivot bug is fixed (hip = 12 above ground). `Pose.fx` / `Rig.pivot` parts are NOT animated by SlayerModel -> fake moving parts by swapping weapon models (e.g. two barrel models alternating) or whole-hand rotation. Weapon mounts: hand is pre-rotated 90deg, so rHandY rolls gun around barrel, rHandZ swings sideways.
+* AttackDef.tick may receive a NULL target (target died mid-attack): always null-check.
+* `ProjStyle.color()` overwrites trail: call `.trail(..)` AFTER `.color(..)`. Custom ProjStyle must be `static final` fields in the kit class.
+* `Combat.dirTo(SlayerEntity,..)` / `Combat.muzzle` already aim from the right-hand side. Kits cannot intercept incoming damage: emulate shields/guards with MobEffects (Resistance) or by removing projectiles in `tick`.
+* `AttackDef.range()` disables line-of-sight when max range <= 4.
+* Shields/regen/abilities of the character belong in `passive(e)` or as attacks.
+* Not allowed: copyrighted audio/textures. Use only vanilla SoundEvents and the procedural Mat system.
+* Register nothing yourself: the stub is already in kit/Kits.java.
