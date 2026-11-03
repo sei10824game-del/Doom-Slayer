@@ -109,7 +109,7 @@ public final class Combat {
     public static void sound(SlayerEntity s, net.minecraft.sounds.SoundEvent ev, float vol, float pitch) { Fx.sound((ServerLevel) s.level(), s.position(), ev, vol, pitch); }
     /** dash/lunge along facing */
     public static void lunge(SlayerEntity s, double speed, double up) {
-        Vec3 f = s.getViewVector(1f); s.setDeltaMovement(f.x * speed, up, f.z * speed); s.hurtMarked = true;
+        double y = Math.toRadians(s.getYRot()); s.setDeltaMovement(-Math.sin(y) * speed, up, Math.cos(y) * speed); s.hurtMarked = true;
     }
     public static void gunSound(SlayerEntity s, float pitch) { sound(s, SoundEvents.FIREWORK_ROCKET_BLAST, 1.2f, pitch); }
 }
