@@ -1,5 +1,6 @@
 package com.doomslayer.client;
 
+import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.*;
 import java.util.LinkedHashSet;
 import java.util.Set;
