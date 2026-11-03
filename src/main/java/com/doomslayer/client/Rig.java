@@ -26,7 +26,7 @@ public class Rig {
     public Rig(MeshDefinition mesh) {
         root = mesh.getRoot();
         all = root.addOrReplaceChild("all", CubeListBuilder.create(), PartPose.offset(0, 24, 0));
-        torso = all.addOrReplaceChild("torso", CubeListBuilder.create(), PartPose.offset(0, 12, 0));
+        torso = all.addOrReplaceChild("torso", CubeListBuilder.create(), PartPose.offset(0, -12, 0));
         head = torso.addOrReplaceChild("head", CubeListBuilder.create(), PartPose.offset(0, -12, 0));
         rArm = torso.addOrReplaceChild("rArm", CubeListBuilder.create(), PartPose.offset(-6, -10, 0));
         lArm = torso.addOrReplaceChild("lArm", CubeListBuilder.create(), PartPose.offset(6, -10, 0));
