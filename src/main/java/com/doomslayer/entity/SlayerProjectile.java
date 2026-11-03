@@ -73,6 +73,7 @@ public class SlayerProjectile extends Projectile {
                 } else { impact(hit.getLocation(), null); discard(); return; }
             }
             s.onTick.run(this);
+            if (isRemoved()) return;
             if (++age2 >= s.life) { impact(position(), null); discard(); return; }
         } else if (s.trail != null) {
             level().addParticle(s.trail, getX(), getY(), getZ(), 0, 0, 0);
