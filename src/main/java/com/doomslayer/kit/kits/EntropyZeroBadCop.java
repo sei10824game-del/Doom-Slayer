@@ -146,6 +146,14 @@ public class EntropyZeroBadCop extends SlayerKit {
     // ================= attacks =================
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        out.add(AttackDef.of("shiv").range(0, 2.8f).cd(34).weight(2).dur(24)
+                .tick((e, t, n) -> {
+                    if (n == 6 || n == 11 || n == 16) {
+                        if (t != null) { Combat.damage(e, t, 4); Fx.dustBurst(KU.L(e), 0x8a0303, 1.2f, KU.mid(t), 8, 0.2); }
+                        KU.snd(e, SoundEvents.TRIDENT_HIT, 0.7f, 1.4f + n * 0.02f);
+                    }
+                })
+                .anim((p, t, a) -> KU.stab(p, t, 0.35f)));
         // ---------- Stunstick: horizontal swing (right-to-left backhand-free sweep) ----------
         out.add(AttackDef.of("stunstick_horizontal").range(0, 3.3f).cd(16).weight(3).dur(16).weapon("stunstick")
                 .tick((e, t, n) -> {

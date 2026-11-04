@@ -145,6 +145,21 @@ public class Halo5Locke extends SlayerKit {
     // ================= attacks =================
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        out.add(AttackDef.of("thruster_pack").range(4, 18).cd(90).weight(2).dur(24)
+                .tick((e, t, n) -> {
+                    if (n == 2) {
+                        Vec3 f = e.getViewVector(1f), left = new Vec3(f.z, 0, -f.x);
+                        e.setDeltaMovement(left.x * 1.1 + f.x * 0.3, 0.12, left.z * 1.1 + f.z * 0.3); e.hurtMarked = true;
+                        KU.snd(e, SoundEvents.FIRECHARGE_USE, 1.1f, 1.5f);
+                    }
+                    if (n > 1 && n < 8) Fx.burst(KU.L(e), ParticleTypes.FLAME, e.position().add(0, 1, 0), 4, 0.2, 0.05);
+                    if (n == 12 || n == 14 || n == 16) { Combat.hitscan(e, KU.mz(e), KU.aim(e, t, 0.02), 30, 3.5f, 0, 0xffd070); KU.flash(e, 0xffd070); KU.snd(e, SoundEvents.FIREWORK_ROCKET_BLAST, 0.9f, 1.4f); }
+                })
+                .anim((p, t, a) -> {
+                    float k = KU.ready(t, .4f, .9f), side = bump(win(t, .05f, .4f));
+                    p.rootRoll = -0.25f * side; p.lLegZ = -0.45f * side; p.rLegZ = 0.25f * side; p.rootY = -0.8f * side;
+                    KU.shoulder(p, k, 0, 1.2f * kick(t, 14 / 24f, .2f)); KU.stance(p, k);
+                }));
         // ---------- Rifle melee: twist-loaded sideways butt-stroke with the BR ----------
         out.add(AttackDef.of("rifle_melee").range(0, 3.2f).cd(22).weight(3).dur(14).weapon("br")
                 .tick((e, t, n) -> {
