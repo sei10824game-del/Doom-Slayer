@@ -48,6 +48,9 @@ public final class Kits {
             new DeadSpaceKits.DsExtractionLexine(),
             new DeadSpaceKits.DsExtractionGabe(),
             new ZeroKatana(),
-            new SekiroWolf()
+            new SekiroWolf(),
+            new HollowKnight(),
+            new Hornet(),
+            new Siffrin()
     );
 }
