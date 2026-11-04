@@ -47,4 +47,7 @@ public abstract class SlayerKit {
 
     /** SERVER: extra per-tick passive behaviour (regen, auras, ...). */
     public void passive(SlayerEntity e) {}
+
+    /** SERVER: called when health hit 0. Return true to cancel death (kit must restore health itself). */
+    public boolean preventDeath(SlayerEntity e) { return false; }
 }

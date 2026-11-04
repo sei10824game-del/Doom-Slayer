@@ -37,6 +37,13 @@ public final class Kits {
             new Halo5Locke(),
             new HaloInfiniteChief(),
             new HaloWarsForge(),
-            new HaloSpartanAssaultPalmer()
+            new HaloSpartanAssaultPalmer(),
+            new Omori(),
+            new Chara(),
+            new DeadSpaceKits.Ds1Isaac(),
+            new DeadSpaceKits.Ds2Isaac(),
+            new DeadSpaceKits.Ds3Isaac(),
+            new DeadSpaceKits.Ds3Carver(),
+            new DeadSpaceKits.DsExtractionMcNeill()
     );
 }

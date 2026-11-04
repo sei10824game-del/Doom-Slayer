@@ -32,7 +32,7 @@ import net.minecraft.world.phys.Vec3;
  * catching enemy fire and hurling it back as a combine ball, resin grenades and the Xen injection overload.
  */
 public class EntropyZero2BadCop extends SlayerKit {
-    static final int XG = 0x6cff3a, XP = 0xb44aff, AR2C = 0x7fe8ff, CBALL = 0xe8f8ff, BLOOD = 0x8a0303, AMBER = 0xffc060;
+    static final int RED = 0xff2a2a, CRIM = 0xb01030, XG = 0x6cff3a, XP = 0xb44aff, AR2C = 0x7fe8ff, CBALL = 0xe8f8ff, BLOOD = 0x8a0303, AMBER = 0xffc060;
 
     // ---------- projectiles ----------
     static final ProjStyle SMG_GREN = ProjStyle.make().color(0x59604a).size(0.26f).life(60).explode(3.2f).gravity(0.06).trail(ParticleTypes.SMOKE);
@@ -79,7 +79,7 @@ public class EntropyZero2BadCop extends SlayerKit {
 
     public EntropyZero2BadCop() {
         super("entropy_zero2_bad_cop", "Bad Cop (EZ2)", "バッドコップ (EZ2)", "Entropy : Zero 2");
-        eggPrimary = 0x22262c; eggSecondary = XG;
+        eggPrimary = 0xdde6ea; eggSecondary = RED;
         maxHealth = 90; speed = 0.31; armor = 13; knockbackRes = 0.45;
         scale = 1.02f; preferredRange = 8f; dmgMult = 1.05f;
         idleWeaponR = "stunstick";
@@ -681,7 +681,7 @@ public class EntropyZero2BadCop extends SlayerKit {
             if (!ok || w < 3 || h < 3) return;
             Random r = new Random(seed * 31L + f.ordinal());
             for (int v = 0; v < 2; v++) {
-                int col = v == 0 ? XG : XP, px = x + r.nextInt(w);
+                int col = v == 0 ? RED : CRIM, px = x + r.nextInt(w);
                 for (int j = 0; j < h; j++) {
                     g.glow(px, y + j, col);
                     px += r.nextInt(3) - 1; px = Math.max(x, Math.min(x + w - 1, px));
@@ -693,15 +693,15 @@ public class EntropyZero2BadCop extends SlayerKit {
 
     @Override
     public void buildModel(Rig rig) {
-        Mat uni = Mat.of(0x23272e).noise(.1f), uniV = Mat.of(0x23272e).noise(.1f).decal(veinDecal(1, Mat.Face.FRONT, Mat.Face.BACK));
-        Mat vest = Mat.of(0x3a414b).bevel(.3f).noise(.08f).decal(veinDecal(2, Mat.Face.FRONT));
-        Mat plate = Mat.of(0x4a525c).bevel(.28f), black = Mat.of(0x141618), strap = Mat.of(0x2c2a26).noise(.12f);
-        Mat mask = Mat.of(0x8b929b).bevel(.3f).noise(.06f).decal((m, g, x, y, w, h, f) -> {
-            if (f == Mat.Face.FRONT) { g.rect(x + 1, y + h - 2, w - 2, 1, 0x50565e); g.glow(x + 1, y + 1, XG); }
+        Mat uni = Mat.of(0xdde6ea).noise(.1f), uniV = Mat.of(0xdde6ea).noise(.1f).decal(veinDecal(1, Mat.Face.FRONT, Mat.Face.BACK));
+        Mat vest = Mat.of(0xeef3f5).bevel(.3f).noise(.08f).decal(veinDecal(2, Mat.Face.FRONT));
+        Mat plate = Mat.of(0xc4ced4).bevel(.28f), black = Mat.of(0x2a2f33), strap = Mat.of(0x2c2a26).noise(.12f);
+        Mat mask = Mat.of(0xf2f6f8).bevel(.3f).noise(.06f).decal((m, g, x, y, w, h, f) -> {
+            if (f == Mat.Face.FRONT) { g.rect(x + 1, y + h - 2, w - 2, 1, 0x9aa6ac); g.glow(x + 1, y + 1, RED); }
         });
-        Mat lens = Mat.of(XG).glow(), lensP = Mat.of(XP).glow(), veinG = Mat.of(XG).glow(), veinP = Mat.of(XP).glow();
-        Mat growth = Mat.of(0x5a2a6e).noise(.3f).bevel(.35f).decal(veinDecal(3, Mat.Face.FRONT, Mat.Face.TOP, Mat.Face.LEFT));
-        Mat band = Mat.of(0xd8d8d0), skinX = Mat.of(0x4a3a50).noise(.2f).decal(veinDecal(4, Mat.Face.FRONT, Mat.Face.LEFT, Mat.Face.RIGHT));
+        Mat lens = Mat.of(RED).glow(), lensP = Mat.of(CRIM).glow(), veinG = Mat.of(RED).glow(), veinP = Mat.of(CRIM).glow();
+        Mat growth = Mat.of(0x9a1236).noise(.2f).bevel(.35f).decal(veinDecal(3, Mat.Face.FRONT, Mat.Face.TOP, Mat.Face.LEFT));
+        Mat band = Mat.of(0xd8d8d0), skinX = Mat.of(0xb01438).noise(.15f).decal(veinDecal(4, Mat.Face.FRONT, Mat.Face.LEFT, Mat.Face.RIGHT));
 
         // torso: dark uniform, combine vest, chest Xen wound
         rig.box(rig.torso, uniV, -4, -12, -2, 8, 12, 4);
@@ -711,7 +711,7 @@ public class EntropyZero2BadCop extends SlayerKit {
         rig.box(rig.torso, veinP, 2, -8, -3.6f, 1, 3, 1);
         rig.box(rig.torso, strap, -4.5f, -2.5f, -2.5f, 9, 2, 5);
         rig.box(rig.torso, black, -3.5f, -2.8f, -3.3f, 2, 2, 1);
-        rig.box(rig.torso, Mat.of(XG).glow(), 2, -2.8f, -3.4f, 1, 2, 1); // resin grenade on the belt
+        rig.box(rig.torso, Mat.of(RED).glow(), 2, -2.8f, -3.4f, 1, 2, 1); // resin grenade on the belt
         rig.box(rig.torso, strap, -1, -13, -2.5f, 2, 1, 5);
         rig.box(rig.torso, black, -2, -10, 3, 4, 5, 2); // radio pack
         rig.box(rig.torso, lensP, -1, -9, 4.6f, 1, 1, 1);
@@ -719,8 +719,7 @@ public class EntropyZero2BadCop extends SlayerKit {
         // head: metrocop mask with cracked Xen-lit lenses, hood
         rig.box(rig.head, uni, -4, -8, -4, 8, 8, 8, .3f);
         rig.box(rig.head, mask, -3.5f, -7, -4.6f, 7, 7, 2);
-        rig.box(rig.head, lens, -3, -5.5f, -5.1f, 2, 2, 1);
-        rig.box(rig.head, lensP, 1, -5.5f, -5.1f, 2, 2, 1);
+        rig.box(rig.head, lens, -1.5f, -6, -5.1f, 3, 3, 1); // single cyclops eye
         rig.box(rig.head, black, -1.5f, -2.5f, -6, 3, 3, 2); // respirator
         rig.box(rig.head, plate, -4.6f, -4, -1, 1, 2, 2);
         rig.box(rig.head, plate, 3.6f, -4, -1, 1, 2, 2);

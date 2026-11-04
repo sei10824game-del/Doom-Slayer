@@ -126,6 +126,12 @@ public class SlayerEntity extends PathfinderMob {
     @Override public boolean canAttack(LivingEntity t) { return t != null && !(t instanceof Player) && !(t instanceof SlayerEntity) && super.canAttack(t); }
 
     @Override
+    public void die(DamageSource src) {
+        if (!level().isClientSide && kit.preventDeath(this)) return;
+        super.die(src);
+    }
+
+    @Override
     public boolean hurt(DamageSource src, float amt) {
         Entity s = src.getEntity();
         if (s instanceof Player || s instanceof SlayerEntity || src.getDirectEntity() instanceof SlayerProjectile) return false;
