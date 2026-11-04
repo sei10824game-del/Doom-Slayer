@@ -283,4 +283,12 @@ public abstract class DeadSpaceKits extends SlayerKit {
         public DsExtractionMcNeill() { super("dead_space_extraction_mcneill", "Nathan McNeill", "ネイサン・マクニール", "Dead Space: Extraction", 0x2e3a52, 0xd0d6dc, 0x60ff90, 95,
                 "cutter", "pulse", "flame", "line", "ripper", "force"); }
     }
+    public static class DsExtractionLexine extends DeadSpaceKits {
+        public DsExtractionLexine() { super("dead_space_extraction_lexine", "Lexine Murray", "レキシーン・マレー", "Dead Space: Extraction", 0x7a3a46, 0xd8c8c0, 0xff80c0, 85,
+                "cutter", "pulse", "line", "force"); }
+    }
+    public static class DsExtractionGabe extends DeadSpaceKits {
+        public DsExtractionGabe() { super("dead_space_extraction_gabe", "Gabe Weller", "ゲイブ・ウェラー", "Dead Space: Extraction", 0x5a4a30, 0x2c2c2c, ORANGE, 110,
+                "pulse", "flame", "ripper", "detonator", "contact"); }
+    }
 }

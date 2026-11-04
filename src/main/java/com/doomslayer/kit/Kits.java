@@ -44,6 +44,10 @@ public final class Kits {
             new DeadSpaceKits.Ds2Isaac(),
             new DeadSpaceKits.Ds3Isaac(),
             new DeadSpaceKits.Ds3Carver(),
-            new DeadSpaceKits.DsExtractionMcNeill()
+            new DeadSpaceKits.DsExtractionMcNeill(),
+            new DeadSpaceKits.DsExtractionLexine(),
+            new DeadSpaceKits.DsExtractionGabe(),
+            new ZeroKatana(),
+            new SekiroWolf()
     );
 }
