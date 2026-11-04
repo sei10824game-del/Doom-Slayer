@@ -51,6 +51,8 @@ public final class Kits {
             new SekiroWolf(),
             new HollowKnight(),
             new Hornet(),
-            new Siffrin()
+            new Siffrin(),
+            new BlasphemousKits.Blasphemous1(),
+            new BlasphemousKits.Blasphemous2()
     );
 }
