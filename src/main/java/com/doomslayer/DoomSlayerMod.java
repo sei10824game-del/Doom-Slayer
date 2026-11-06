@@ -54,6 +54,7 @@ public class DoomSlayerMod {
 
     public DoomSlayerMod() {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
+        net.minecraftforge.fml.ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, Rules.SPEC);
         ENTITIES.register(bus); ITEMS.register(bus); TABS.register(bus);
         bus.addListener((EntityAttributeCreationEvent e) -> TYPES.forEach((k, t) -> e.put(t.get(), SlayerEntity.attrs(k).build())));
     }

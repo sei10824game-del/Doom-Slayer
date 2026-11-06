@@ -1,5 +1,6 @@
 package com.doomslayer.entity;
 
+import com.doomslayer.Rules;
 import com.doomslayer.kit.AttackDef;
 import com.doomslayer.kit.SlayerKit;
 import java.util.ArrayList;
@@ -122,9 +123,11 @@ public class SlayerEntity extends PathfinderMob {
     @Nullable public Player getOwner() { UUID id = getOwnerId(); return id == null ? null : level().getPlayerByUUID(id); }
     public boolean isStaying() { return entityData.get(STAY); }
 
-    /** slayers fight each other unless they share an owner (unowned slayers are everyone's rivals) */
+    /** slayer-vs-slayer hostility, controlled by Rules (rivals / friendlyFire) */
     public static boolean rival(SlayerEntity a, SlayerEntity b) {
-        return a != b && (a.getOwnerId() == null || !a.getOwnerId().equals(b.getOwnerId()));
+        if (a == b) return false;
+        boolean same = a.getOwnerId() != null && a.getOwnerId().equals(b.getOwnerId());
+        return same ? Rules.FRIENDLY_FIRE.get() : Rules.RIVALS.get();
     }
 
     @Override public boolean isAlliedTo(Entity o) { return o instanceof Player || (o instanceof SlayerEntity s && !rival(this, s)) || super.isAlliedTo(o); }
