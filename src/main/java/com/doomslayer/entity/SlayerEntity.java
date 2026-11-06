@@ -143,6 +143,7 @@ public class SlayerEntity extends PathfinderMob {
     public boolean hurt(DamageSource src, float amt) {
         Entity s = src.getEntity();
         if (s instanceof SlayerEntity o && !rival(this, o)) return false; // no friendly fire between same-owner slayers
+        if (!level().isClientSide) { amt = kit.modifyDamage(this, src, amt); if (amt <= 0) return false; }
         boolean r = super.hurt(src, amt);
         if (r && s instanceof SlayerEntity o && getTarget() == null) setTarget(o); // retaliate
         return r;

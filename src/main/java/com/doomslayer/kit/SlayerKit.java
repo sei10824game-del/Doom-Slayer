@@ -50,4 +50,7 @@ public abstract class SlayerKit {
 
     /** SERVER: called when health hit 0. Return true to cancel death (kit must restore health itself). */
     public boolean preventDeath(SlayerEntity e) { return false; }
+
+    /** SERVER: adjust incoming damage before it applies (return <= 0 to negate completely). Used for parry/guard. */
+    public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return amt; }
 }

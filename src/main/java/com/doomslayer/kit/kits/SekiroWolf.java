@@ -19,7 +19,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 
 /** Wolf / Sekiro (Sekiro: Shadows Die Twice): shinobi with Kusabimaru and the Shinobi Prosthetic. Resurrects once. */
@@ -49,10 +52,58 @@ public class SekiroWolf extends SlayerKit {
         return true;
     }
 
+
+    // ================= Posture / deflect system =================
+    static long now(SlayerEntity e) { return e.level().getGameTime(); }
+
+    /** Deflect: perfect window negates the hit, builds the enemy's posture and bats back projectiles; guard cuts damage but builds Wolf's posture. */
+    @Override
+    public float modifyDamage(SlayerEntity e, DamageSource src, float amt) {
+        var d = e.getPersistentData(); long now = now(e);
+        Entity direct = src.getDirectEntity(), att = src.getEntity();
+        boolean perfectWin = now < d.getLong("w_parry"), guard = now < d.getLong("w_guard"), umbrella = now < d.getLong("w_umb");
+        if (direct instanceof Projectile pr && !(pr instanceof com.doomslayer.entity.SlayerProjectile) && (perfectWin || umbrella || guard)) {
+            pr.setDeltaMovement(pr.getDeltaMovement().scale(-1.3)); pr.setOwner(e); pr.hurtMarked = true; // deflect it back
+            Fx.sparks(L(e), pr.position(), 10); snd(e, SoundEvents.ANVIL_LAND, 0.7f, 2f);
+            return 0;
+        }
+        if (!(att instanceof LivingEntity a) || direct != att) return amt; // melee only below
+        if (umbrella) { guardPosture(e, d, amt * 0.3f); snd(e, SoundEvents.SHIELD_BLOCK, 1f, 1.2f); return amt * 0.05f; }
+        boolean auto = now >= d.getLong("w_cd") && e.getRandom().nextFloat() < 0.35f; // reflexive deflect
+        if (perfectWin || auto) {
+            d.putLong("w_cd", now + 14);
+            Vec3 c = e.position().add(0, 1.2, 0).add(e.getViewVector(1f).scale(0.8));
+            Fx.sparks(L(e), c, 18); Fx.dustBurst(L(e), 0xffd070, 1.2f, c, 10, 0.3); Fx.ring(L(e), c, 1.1f, 0xffe090, 1.4f, 14);
+            snd(e, SoundEvents.ANVIL_LAND, 0.9f, 1.9f); snd(e, SoundEvents.IRON_GOLEM_HURT, 0.7f, 1.8f); // clang
+            Combat.knock(a, e.position(), 0.5, 0.1); a.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 2));
+            var ad = a.getPersistentData(); float post = ad.getFloat("w_post") + (perfectWin ? 45 : 28);
+            if (post >= 100) { // posture broken: stunned, deathblow available
+                ad.putFloat("w_post", 0); ad.putLong("w_stun", now + 90);
+                a.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 90, 6)); a.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 90, 2));
+                Fx.burst(L(e), ParticleTypes.CRIT, a.position().add(0, a.getBbHeight(), 0), 20, 0.4, 0.3); snd(e, SoundEvents.ANVIL_PLACE, 0.8f, 1.3f);
+                if (e.getOwner() != null) e.getOwner().displayClientMessage(Component.literal("Posture broken!"), true);
+            } else ad.putFloat("w_post", post);
+            return 0;
+        }
+        if (guard) { guardPosture(e, d, amt * 1.5f); snd(e, SoundEvents.SHIELD_BLOCK, 0.9f, 1.4f); Fx.sparks(L(e), e.position().add(0, 1.2, 0), 6); return amt * 0.15f; }
+        guardPosture(e, d, amt * 0.8f);
+        return amt;
+    }
+
+    private static void guardPosture(SlayerEntity e, net.minecraft.nbt.CompoundTag d, float add) {
+        float p = d.getFloat("w_post") + add;
+        if (p >= 100) { // Wolf's own posture breaks: staggered
+            p = 30; e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 4)); snd(e, SoundEvents.GLASS_BREAK, 0.8f, 0.8f);
+            Fx.burst(L(e), ParticleTypes.CRIT, e.position().add(0, 2, 0), 14, 0.4, 0.2);
+        }
+        d.putFloat("w_post", p);
+    }
+
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.5f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.4f; p.bodyX += 0.05f; p.lArmX = -0.2f + p.lArmX * 0.5f; }
 
     @Override
-    public void passive(SlayerEntity e) { // Healing Gourd
+    public void passive(SlayerEntity e) { // Healing Gourd + posture recovery
+        var d = e.getPersistentData(); float po = d.getFloat("w_post"); if (po > 0) d.putFloat("w_post", Math.max(0, po - (e.getHealth() / e.getMaxHealth() > 0.5f ? 0.2f : 0.1f)));
         if (e.tickCount % 400 == 0 && e.getHealth() < e.getMaxHealth() * 0.5f) {
             e.heal(e.getMaxHealth() * 0.3f); snd(e, SoundEvents.GENERIC_DRINK, 0.8f, 1f); Fx.burst(L(e), ParticleTypes.HAPPY_VILLAGER, e.position().add(0, 1.2, 0), 10, 0.4, 0.05);
         }
@@ -155,6 +206,117 @@ public class SekiroWolf extends SlayerKit {
                     }
                 }).anim((p, t, a) -> { float k = ready(t, .15f, .85f); p.lArmX = lerp(p.lArmX, -1.5f, k); p.rArmX = lerp(p.rArmX, -0.4f, k); p.bodyX += 0.1f * k; p.rootY -= 0.4f * k; }));
 
+
+        // ---------- Deflect (hold the blade across the body; the 14-tick window is a perfect parry) ----------
+        out.add(AttackDef.of("deflect").range(0, 7).cd(45).weight(3).dur(26).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    var d = e.getPersistentData();
+                    if (n == 2) { d.putLong("w_parry", now(e) + 14); d.putLong("w_guard", now(e) + 26); snd(e, SoundEvents.ARMOR_EQUIP_IRON, 0.7f, 1.8f); }
+                    if (n == 3 || n == 10) Fx.dustBurst(L(e), 0xffffff, 0.8f, e.position().add(0, 1.3, 0).add(e.getViewVector(1f).scale(0.8)), 3, 0.2);
+                })
+                .anim((p, t, a) -> {
+                    float k = ready(t, .12f, .85f), sh = 0.03f * (float) Math.sin(a * 9f) * k;
+                    // blade vertical across the chest, off-hand steadying the spine, knees bent, tiny shudder on contact
+                    p.rArmX = lerp(p.rArmX, -1.25f, k); p.rArmZ = lerp(p.rArmZ, -0.25f, k) + sh; p.rArmY = lerp(p.rArmY, 0.35f, k); p.rHandX = lerp(p.rHandX, -1.2f, k);
+                    p.lArmX = lerp(p.lArmX, -1.0f, k); p.lArmZ = lerp(p.lArmZ, 0.25f, k); p.lArmY = lerp(p.lArmY, 0.5f, k);
+                    p.bodyY += 0.25f * k; p.headY -= 0.2f * k; p.bodyX += 0.1f * k; stance(p, k); p.rootY -= 0.5f * k;
+                    p.rootZ += 0.8f * bump(win(t, .12f, .35f)); // slight recoil when braced
+                }));
+
+        // ---------- Loaded Umbrella: blocks everything frontal for a short time ----------
+        out.add(AttackDef.of("loaded_umbrella").range(0, 10).cd(160).weight(1).dur(52).weapon("umbrella")
+                .tick((e, t, n) -> {
+                    if (n == 2) { e.getPersistentData().putLong("w_umb", now(e) + 44); snd(e, SoundEvents.WOOL_PLACE, 1f, 1.8f); }
+                    if (n >= 3 && n < 46 && n % 8 == 0) Fx.ring(L(e), e.position().add(0, 1.3, 0).add(e.getViewVector(1f).scale(0.9)), 0.9f, 0xd8c8a0, 1.2f, 12);
+                    if (n == 48) snd(e, SoundEvents.WOOL_BREAK, 0.8f, 1.2f);
+                })
+                .anim((p, t, a) -> {
+                    float k = ready(t, .1f, .88f);
+                    p.rArmX = lerp(p.rArmX, -1.5f, k); p.rArmZ = lerp(p.rArmZ, -0.1f, k); p.lArmX = lerp(p.lArmX, -1.2f, k); p.lArmZ = lerp(p.lArmZ, 0.3f, k);
+                    stance(p, k); p.rootY -= 0.6f * k; p.bodyX += 0.15f * k; p.headX += 0.1f * k;
+                }));
+
+        // ---------- Sabimaru: poisoned slashes ----------
+        out.add(AttackDef.of("sabimaru").range(0, 3.3f).cd(40).weight(2).dur(22).weapon("sabimaru")
+                .tick((e, t, n) -> {
+                    if (n == 5 || n == 12) {
+                        boolean r = n == 5; slash(e, r ? 70 : -60, r ? -60 : 70, 10, 0x60c040);
+                        for (LivingEntity f : Combat.cone(e, 3.3, 55)) { Combat.damage(e, f, 4.5f); f.addEffect(new MobEffectInstance(MobEffects.POISON, 100, 1)); Fx.dustBurst(L(e), 0x60c040, 1f, mid(f), 8, 0.3); }
+                        snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.5f);
+                    }
+                }).anim((p, t, a) -> {
+                    float s = (float) Math.sin(t * PI * 2f);
+                    p.rArmX = -1.4f + 0.4f * Math.abs(s); p.rArmZ = 0.9f * s; p.lArmX = -0.4f; p.bodyY = 0.7f * s; p.headY = -0.35f * s; p.lLegX = -0.4f; p.rLegX = 0.3f;
+                }));
+
+        // ---------- Spiral Cloud Passage: leaping spin ----------
+        out.add(AttackDef.of("spiral_cloud_passage").range(2, 8).cd(130).weight(2).dur(34).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n == 3) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(f.x * 0.6, 0.65, f.z * 0.6); e.hurtMarked = true; snd(e, SoundEvents.PLAYER_ATTACK_KNOCKBACK, 0.8f, 1.6f); }
+                    if (n >= 9 && n < 26 && n % 4 == 1) {
+                        slash(e, 359, 0, 0, 0xffffff);
+                        for (LivingEntity f : Combat.around(e, e.position().add(0, 1, 0), 3.4)) { Combat.damage(e, f, 5); Combat.knock(f, e.position(), 0.5, 0.2); Fx.sparks(L(e), mid(f), 4); }
+                        snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.3f);
+                    }
+                }).anim((p, t, a) -> {
+                    float air = win(t, .08f, .25f) * (1 - win(t, .8f, 1f));
+                    p.rootYaw += 6.28f * 3 * win(t, .22f, .75f); p.rootY += 2f * air; p.lLegX = -1.1f * air; p.rLegX = 0.4f * air; p.rArmX = lerp(-0.2f, -1.55f, air); p.rArmZ = 1.2f * air; p.lArmZ = -0.8f * air;
+                }));
+
+        // ---------- Dragon Flash: lightning-fast draw, a long piercing line ----------
+        out.add(AttackDef.of("dragon_flash").range(4, 16).cd(200).weight(1).dur(30).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n >= 3 && n < 12) Fx.burst(L(e), ParticleTypes.ELECTRIC_SPARK, e.position().add(0, 1.2, 0), 3, 0.4, 0.2);
+                    if (n == 14) {
+                        Vec3 d = aim(e, t, 0), m = mz(e); Combat.hitscan(e, m, d, 18, 16f, 8, 0xc0e0ff);
+                        Vec3 prev = m; for (int i = 1; i <= 9; i++) { Vec3 q = m.add(d.scale(i * 2)).add((e.getRandom().nextDouble() - .5) * .5, (e.getRandom().nextDouble() - .5) * .5, (e.getRandom().nextDouble() - .5) * .5); Fx.beam(L(e), prev, q, i % 2 == 0 ? 0xffffff : 0xa0d0ff, 0.9f, 0.25); prev = q; }
+                        snd(e, SoundEvents.LIGHTNING_BOLT_THUNDER, 0.5f, 1.6f); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 1.4f);
+                    }
+                }).anim((p, t, a) -> {
+                    float w = win(t, .1f, .4f) * (1 - win(t, .5f, .55f));
+                    p.rArmX = track(t, 0, -0.2f, .4f, -0.4f, .47f, -1.55f, .7f, -1.5f, 1, -0.2f); p.rArmZ = track(t, 0, 0.1f, .4f, -0.6f, .47f, 0, 1, 0.1f);
+                    p.bodyY = track(t, 0, 0, .4f, 0.9f, .47f, -0.5f, 1, 0); p.rootY -= 1.6f * w; p.lLegX = -0.7f * w; p.rLegX = 0.55f * w; p.rootZ = -1f * bump(win(t, .45f, .8f));
+                }));
+
+        // ---------- Nightjar Slash: leap high, come down cutting ----------
+        out.add(AttackDef.of("nightjar_slash").range(3, 9).cd(120).weight(2).dur(30).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n == 3) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(f.x * 0.35, 0.95, f.z * 0.35); e.hurtMarked = true; snd(e, SoundEvents.FIREWORK_ROCKET_LAUNCH, 0.5f, 1.8f); }
+                    if (n == 13 && t != null) { Vec3 d = t.position().subtract(e.position()).normalize(); e.setDeltaMovement(d.x * 0.9, -1.1, d.z * 0.9); e.hurtMarked = true; }
+                    if (n == 18) { slash(e, 0, 0, -80, 0xffffff); melee(e, 3.8, 14, 0.8, 0.3, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.9f); }
+                }).anim((p, t, a) -> {
+                    float up = win(t, .08f, .3f) * (1 - win(t, .4f, .5f)), dn = bump(win(t, .42f, .75f));
+                    p.rArmX = lerp(p.rArmX, -3.0f, up) - 0.2f * dn; p.lLegX = -0.8f * up; p.rLegX = 0.5f * up; p.bodyX += 0.2f * up + 0.5f * dn; p.rootY += 1.5f * up;
+                }));
+
+        // ---------- Senpou Leaping Kicks ----------
+        out.add(AttackDef.of("leaping_kicks").range(2, 7).cd(100).weight(2).dur(30)
+                .tick((e, t, n) -> {
+                    if (n == 2) Combat.lunge(e, 0.9, 0.3);
+                    if (n == 7 || n == 14 || n == 21) {
+                        for (LivingEntity f : Combat.cone(e, 3.3, 50)) { Combat.damage(e, f, n == 21 ? 7 : 4); Combat.knock(f, e.position(), n == 21 ? 1.1 : 0.2, 0.1); Fx.sparks(L(e), mid(f), 5); }
+                        snd(e, SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1f, 1.0f + n * 0.01f);
+                    }
+                    if (n == 21) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(-f.x * 0.5, 0.35, -f.z * 0.5); e.hurtMarked = true; }
+                }).anim((p, t, a) -> {
+                    float air = win(t, .05f, .2f) * (1 - win(t, .8f, 1f)), s = (float) Math.sin(t * PI * 3f);
+                    p.rootY += 1.2f * air; p.bodyX -= 0.4f * air; p.rLegX = -1.5f * Math.max(0, s) * air; p.lLegX = -1.5f * Math.max(0, -s) * air; p.rArmX = -0.8f * air; p.lArmX = -0.8f * air;
+                }));
+
+        // ---------- Deathblow on a posture-broken enemy (kills regular foes, halves bosses) ----------
+        out.add(AttackDef.of("posture_deathblow").range(0, 3.6f).cd(30).weight(8).dur(26).weapon("kusabimaru")
+                .when((e, t) -> now(e) < t.getPersistentData().getLong("w_stun"))
+                .tick((e, t, n) -> {
+                    if (n == 2) Combat.lunge(e, 0.9, 0.02);
+                    if (t != null) { t.setDeltaMovement(Vec3.ZERO); t.hurtMarked = true; }
+                    if (n == 11 && t != null) {
+                        Fx.dustBurst(L(e), 0xb01010, 1.6f, mid(t), 36, 0.45); slash(e, 90, -90, 0, 0xffffff); Fx.ring(L(e), mid(t), 2f, 0xff3030, 1.6f, 20);
+                        snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1.3f, 0.5f); snd(e, SoundEvents.WITHER_BREAK_BLOCK, 0.4f, 1.6f);
+                        t.getPersistentData().putLong("w_stun", 0);
+                        Combat.damage(e, t, t.getMaxHealth() <= 120 ? t.getHealth() + 60 : t.getMaxHealth() * 0.5f);
+                    }
+                }).anim((p, t, a) -> stab(p, t, 11 / 26f)));
+
         // Shinobi execution (deathblow)
         out.add(AttackDef.of("deathblow").range(0, 3.4f).lowHealthTarget(0.3f).cd(40).weight(5).dur(24).weapon("kusabimaru")
                 .tick((e, t, n) -> {
@@ -184,7 +346,11 @@ public class SekiroWolf extends SlayerKit {
             rig.box(leg, cloth, -2, 8, -2, 4, 4, 4, .2f);
         }
         rig.box(rig.lArm, gold, -1, 9, -2.5f, 2, 1, 1);
-        PartDefinition w = rig.weapon(rig.rHand, "kusabimaru");
+        PartDefinition w = rig.weapon(rig.rHand, "sabimaru");
+        rig.box(w, Mat.of(0x6a8a60).bevel(.1f), -0.4f, -2.5f, -17, 1, 1, 15); rig.box(w, Mat.of(0x203020), -1.5f, -3, -3, 3, 2, 1); rig.box(w, Mat.of(0x40a030).glow(), -0.5f, -2.5f, -2, 1, 1, 5);
+        w = rig.weapon(rig.rHand, "umbrella");
+        rig.box(w, Mat.of(0x5a3a22), -0.5f, -2.5f, -14, 1, 1, 16); rig.box(w, Mat.of(0xd8c8a0).noise(.1f), -6, -4, -18, 12, 1, 10); rig.box(w, Mat.of(0xb02020), -4, -5, -17, 8, 1, 8); rig.box(w, Mat.of(0x303030), -1, -5.5f, -14, 2, 1, 2);
+        w = rig.weapon(rig.rHand, "kusabimaru");
         rig.box(w, steel, -0.4f, -2.5f, -17, 1, 1, 15); rig.box(w, Mat.of(0x303030), -1.5f, -3, -3, 3, 2, 1); rig.box(w, red, -0.5f, -2.5f, -2, 1, 1, 5);
     }
 }
