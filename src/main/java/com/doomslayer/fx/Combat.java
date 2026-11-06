@@ -26,7 +26,8 @@ public final class Combat {
     private Combat() {}
 
     public static boolean isFoe(SlayerEntity s, LivingEntity t) {
-        if (t == null || !t.isAlive() || t instanceof Player || t instanceof SlayerEntity) return false;
+        if (t == null || !t.isAlive() || t instanceof Player) return false;
+        if (t instanceof SlayerEntity o) return SlayerEntity.rival(s, o);
         if (t instanceof TamableAnimal ta && ta.isTame()) return false;
         if (t == s.getTarget() || t == s.atkTarget || t instanceof Enemy) return true;
         return t instanceof Mob m && (m.getTarget() instanceof Player || m.getTarget() instanceof SlayerEntity);

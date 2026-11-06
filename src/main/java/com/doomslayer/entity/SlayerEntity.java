@@ -122,8 +122,13 @@ public class SlayerEntity extends PathfinderMob {
     @Nullable public Player getOwner() { UUID id = getOwnerId(); return id == null ? null : level().getPlayerByUUID(id); }
     public boolean isStaying() { return entityData.get(STAY); }
 
-    @Override public boolean isAlliedTo(Entity o) { return o instanceof Player || o instanceof SlayerEntity || super.isAlliedTo(o); }
-    @Override public boolean canAttack(LivingEntity t) { return t != null && !(t instanceof Player) && !(t instanceof SlayerEntity) && super.canAttack(t); }
+    /** slayers fight each other unless they share an owner (unowned slayers are everyone's rivals) */
+    public static boolean rival(SlayerEntity a, SlayerEntity b) {
+        return a != b && (a.getOwnerId() == null || !a.getOwnerId().equals(b.getOwnerId()));
+    }
+
+    @Override public boolean isAlliedTo(Entity o) { return o instanceof Player || (o instanceof SlayerEntity s && !rival(this, s)) || super.isAlliedTo(o); }
+    @Override public boolean canAttack(LivingEntity t) { return t != null && !(t instanceof Player) && (!(t instanceof SlayerEntity s) || rival(this, s)) && super.canAttack(t); }
 
     @Override
     public void die(DamageSource src) {
@@ -134,8 +139,10 @@ public class SlayerEntity extends PathfinderMob {
     @Override
     public boolean hurt(DamageSource src, float amt) {
         Entity s = src.getEntity();
-        if (s instanceof Player || s instanceof SlayerEntity || src.getDirectEntity() instanceof SlayerProjectile) return false;
-        return super.hurt(src, amt);
+        if (s instanceof SlayerEntity o && !rival(this, o)) return false; // no friendly fire between same-owner slayers
+        boolean r = super.hurt(src, amt);
+        if (r && s instanceof SlayerEntity o && getTarget() == null) setTarget(o); // retaliate
+        return r;
     }
 
     @Override
@@ -162,7 +169,7 @@ public class SlayerEntity extends PathfinderMob {
 
     // ---------- goals ----------
     public static boolean isHostile(SlayerEntity self, LivingEntity e) {
-        return e instanceof Enemy && !(e instanceof SlayerEntity) && e.isAlive();
+        return e.isAlive() && (e instanceof SlayerEntity o ? rival(self, o) : e instanceof Enemy);
     }
 
     @Override
