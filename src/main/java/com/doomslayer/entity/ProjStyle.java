@@ -22,6 +22,8 @@ public class ProjStyle {
     public float explodeRadius = 0, explodeKb = 0.6f; public boolean bounce; public float homing;
     public ParticleOptions trail;
     public boolean glow = true, visible = true;
+    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC }
+    public Shape shape = Shape.AUTO;
     public Tick onTick = p -> {};
     public Hit onHit = null; // null -> default impact (sparks / explosion)
 
@@ -36,6 +38,19 @@ public class ProjStyle {
     public ProjStyle trail(ParticleOptions o) { trail = o; return this; }
     public ProjStyle homing(float h) { homing = h; return this; }
     public ProjStyle bounce() { bounce = true; return this; }
+    public ProjStyle shape(Shape sh) { shape = sh; return this; }
+    /** explicit shape, or one guessed from the style's behaviour */
+    public Shape resolved() {
+        if (shape != Shape.AUTO) return shape;
+        if (explodeRadius > 0 && homing > 0) return Shape.MISSILE;
+        if (explodeRadius > 0 && gravity > 0) return Shape.GRENADE;
+        if (explodeRadius > 0) return size <= 0.5f ? Shape.MISSILE : Shape.ORB;
+        if (pierce >= 3 && bounce && size >= 0.4f) return Shape.DISC;
+        if (homing > 0) return Shape.ORB;
+        if (size <= 0.3f && (pierce > 0 || gravity > 0)) return Shape.DART;
+        if (size <= 0.35f) return Shape.BOLT;
+        return Shape.ORB;
+    }
     public ProjStyle invisible() { visible = false; return this; }
     public ProjStyle onTick(Tick t) { onTick = t; return this; }
     public ProjStyle onHit(Hit h) { onHit = h; return this; }

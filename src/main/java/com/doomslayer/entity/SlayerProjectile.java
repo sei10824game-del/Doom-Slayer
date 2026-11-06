@@ -23,6 +23,8 @@ public class SlayerProjectile extends Projectile {
     private final java.util.Set<Integer> hitIds = new java.util.HashSet<>();
     /** free scratch values for ProjStyle hooks */
     public int aux; public Vec3 auxVec;
+    /** CLIENT: recent positions for the ribbon trail (oldest first) */
+    public final java.util.ArrayList<Vec3> hist = new java.util.ArrayList<>();
 
     public SlayerProjectile(EntityType<? extends SlayerProjectile> t, Level l) { super(t, l); noPhysics = false; }
 
@@ -75,8 +77,8 @@ public class SlayerProjectile extends Projectile {
             s.onTick.run(this);
             if (isRemoved()) return;
             if (++age2 >= s.life) { impact(position(), null); discard(); return; }
-        } else if (s.trail != null) {
-            level().addParticle(s.trail, getX(), getY(), getZ(), 0, 0, 0);
+        } else {
+            hist.add(position()); if (hist.size() > 14) hist.remove(0);
         }
         setPos(getX() + getDeltaMovement().x, getY() + getDeltaMovement().y, getZ() + getDeltaMovement().z);
     }
