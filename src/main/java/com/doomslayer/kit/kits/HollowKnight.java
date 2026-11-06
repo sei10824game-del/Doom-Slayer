@@ -37,21 +37,29 @@ public class HollowKnight extends SlayerKit {
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.3f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.7f; p.bodyX += 0.05f; }
 
+    /** SOUL meter 0..99: filled by nail hits, spent by spells and Focus */
+    static int soul(SlayerEntity e) { return e.getPersistentData().getInt("hk_soul"); }
+    static void soul(SlayerEntity e, int add) { if (add != 0) e.getPersistentData().putInt("hk_soul", Math.max(0, Math.min(99, soul(e) + add))); }
+
     @Override
-    public void passive(SlayerEntity e) { // Focus: slow soul heal while safe
-        if (e.tickCount % 120 == 0 && e.getHealth() < e.getMaxHealth() && Combat.around(e, e.position(), 7).isEmpty()) {
-            e.heal(4); Fx.burst(KU.L(e), ParticleTypes.END_ROD, e.position().add(0, 1, 0), 10, 0.3, 0.05); snd(e, SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.6f);
+    public void passive(SlayerEntity e) { // Focus: spend 33 soul to heal while safe
+        if (e.tickCount % 120 == 0 && e.getHealth() < e.getMaxHealth() && soul(e) >= 33 && Combat.around(e, e.position(), 7).isEmpty()) {
+            soul(e, -33); e.heal(8); Fx.burst(KU.L(e), ParticleTypes.END_ROD, e.position().add(0, 1, 0), 10, 0.3, 0.05); snd(e, SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.6f);
         }
     }
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineAll(out); gateSpells(out);
+    }
+
+    private void defineAll(List<AttackDef> out) {
         out.add(AttackDef.of("nail_slash").range(0, 3.1f).cd(12).weight(3).dur(12).weapon("nail")
-                .tick((e, t, n) -> { if (n == 4) { slash(e, 70, -60, 5, 0xffffff); melee(e, 3.2, 5, 0.4, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.6f); } })
+                .tick((e, t, n) -> { if (n == 4) { slash(e, 70, -60, 5, 0xffffff); soul(e, melee(e, 3.2, 5, 0.4, 0.1, 0xffffff) * 11); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.6f); } })
                 .anim((p, t, a) -> swing(p, t, 4 / 12f, 1f)));
 
         out.add(AttackDef.of("up_slash").range(0, 3f).cd(30).weight(1).dur(14).weapon("nail")
-                .tick((e, t, n) -> { if (n == 5) { slash(e, 0, 0, -80, 0xffffff); melee(e, 3.2, 5, 0.1, 0.5, 0xffffff); } })
+                .tick((e, t, n) -> { if (n == 5) { slash(e, 0, 0, -80, 0xffffff); soul(e, melee(e, 3.2, 5, 0.1, 0.5, 0xffffff) * 11); } })
                 .anim((p, t, a) -> { float k = bump(win(t, .1f, .8f)); p.rArmX = -3.0f * k; p.bodyX -= 0.25f * k; p.headX -= 0.3f * k; }));
 
         // down slash / pogo: leap and bounce on the target
@@ -70,7 +78,7 @@ public class HollowKnight extends SlayerKit {
                     if (n == 4) snd(e, SoundEvents.BEACON_ACTIVATE, 0.5f, 1.8f);
                     if (n == 10) { Combat.lunge(e, 1.6, 0.02); }
                     if (n >= 10 && n < 15) Fx.burst(KU.L(e), ParticleTypes.CLOUD, e.position().add(0, 0.5, 0), 3, 0.2, 0.02);
-                    if (n == 13) { slash(e, 80, -80, 0, 0xffffff); melee(e, 3.8, 12, 1.0, 0.2, 0xffffff); }
+                    if (n == 13) { slash(e, 80, -80, 0, 0xffffff); soul(e, melee(e, 3.8, 12, 1.0, 0.2, 0xffffff) * 11); }
                 }).anim((p, t, a) -> {
                     float k = bump(win(t, .1f, .8f));
                     p.rArmX = lerp(p.rArmX, -1.5f, k); p.bodyX += 1f * k; p.rootY -= 1.2f * k; p.lLegX = -1f * k; p.rLegX = 0.9f * k; p.rootZ = -2f * win(t, .4f, .6f);
@@ -80,7 +88,7 @@ public class HollowKnight extends SlayerKit {
         out.add(AttackDef.of("great_slash").range(0, 4f).cd(110).weight(1).dur(30).weapon("nail")
                 .tick((e, t, n) -> {
                     if (n < 14 && n % 4 == 0) Fx.dustBurst(KU.L(e), SOUL, 1f, e.position().add(0, 1.3, 0), 3, 0.5);
-                    if (n == 16) { slash(e, 100, -100, 15, SOUL); melee(e, 4.2, 15, 1.2, 0.3, SOUL); Fx.ring(KU.L(e), e.position().add(0, 1, 0), 3f, SOUL, 1.5f, 20); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.7f); }
+                    if (n == 16) { slash(e, 100, -100, 15, SOUL); soul(e, melee(e, 4.2, 15, 1.2, 0.3, SOUL) * 11); Fx.ring(KU.L(e), e.position().add(0, 1, 0), 3f, SOUL, 1.5f, 20); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.7f); }
                 }).anim((p, t, a) -> {
                     float w = win(t, .1f, .45f) * (1 - win(t, .5f, .55f));
                     p.rArmX = track(t, 0, -0.3f, .45f, -2.7f, .6f, -1.2f, 1, -0.3f); p.rArmZ = track(t, 0, 0.1f, .45f, 0.9f, .6f, -0.8f, 1, 0.1f);
@@ -89,7 +97,7 @@ public class HollowKnight extends SlayerKit {
 
         // Cyclone Slash
         out.add(AttackDef.of("cyclone_slash").range(0, 3.6f).cd(120).weight(1).dur(36).weapon("nail")
-                .tick((e, t, n) -> { if (n >= 6 && n < 30 && n % 4 == 0) { slash(e, 0, 359, 0, 0xffffff); melee(e, 3.6, 4, 0.2, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.7f, 1.4f); } })
+                .tick((e, t, n) -> { if (n >= 6 && n < 30 && n % 4 == 0) { slash(e, 0, 359, 0, 0xffffff); soul(e, melee(e, 3.6, 4, 0.2, 0.1, 0xffffff) * 11); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.7f, 1.4f); } })
                 .anim((p, t, a) -> { p.rootYaw += 6.28f * 3 * win(t, .1f, .85f); p.rArmZ = 1.5f * bump(win(t, .1f, .85f)); p.rArmX = -0.4f; }));
 
         out.add(AttackDef.of("vengeful_spirit").range(3, 18).cd(60).weight(2).dur(20)
@@ -126,8 +134,14 @@ public class HollowKnight extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n == 2) { e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 14, 4)); Combat.lunge(e, 1.9, 0); snd(e, SoundEvents.ENDERMAN_TELEPORT, 0.7f, 1.4f); }
                     if (n >= 2 && n < 10) Fx.dustBurst(KU.L(e), SHADE, 1.4f, e.position().add(0, 1, 0), 6, 0.3);
-                    if (n == 8) melee(e, 3.5, 8, 0.8, 0.1, SHADE);
+                    if (n == 8) soul(e, melee(e, 3.5, 8, 0.8, 0.1, SHADE) * 11);
                 }).anim((p, t, a) -> { float k = bump(win(t, .1f, .85f)); p.bodyX += 1f * k; p.rArmX = -0.5f * k; p.lArmX = -0.5f * k; p.rootY -= 1.4f * k; }));
+    }
+
+    private void gateSpells(List<AttackDef> out) {
+        for (AttackDef a : out) if (List.of("vengeful_spirit", "shade_soul", "desolate_dive", "howling_wraiths").contains(a.id)) {
+            a.when((e, t) -> soul(e) >= 33); a.onStart((e, t, n) -> soul(e, -33));
+        }
     }
 
     @Override

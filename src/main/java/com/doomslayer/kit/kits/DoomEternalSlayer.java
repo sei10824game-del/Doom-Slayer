@@ -853,6 +853,17 @@ public class DoomEternalSlayer extends SlayerKit {
     // passive: chainsaw fuel regen, stagger flash on low-health target
     // =====================================================================================
     @Override
+    public boolean preventDeath(SlayerEntity e) { // Extra Life (1UP)
+        var d = e.getPersistentData();
+        if (d.getBoolean("de_1up")) return false;
+        d.putBoolean("de_1up", true); e.setHealth(e.getMaxHealth());
+        e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 4));
+        if (e.level() instanceof ServerLevel l) Fx.ring(l, e.position().add(0, 1, 0), 2.5f, 0x40ff60, 1.6f, 24);
+        Combat.sound(e, SoundEvents.TOTEM_USE, 1f, 1.2f);
+        return true;
+    }
+
+    @Override
     public void passive(SlayerEntity e) {
         if (e.tickCount % 200 == 0 && fuel(e) < 3) e.getPersistentData().putInt(FUEL, fuel(e) + 1);
         LivingEntity t = e.getTarget();

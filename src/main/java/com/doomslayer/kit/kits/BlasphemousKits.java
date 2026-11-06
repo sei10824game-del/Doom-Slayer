@@ -34,6 +34,8 @@ public abstract class BlasphemousKits extends SlayerKit {
         scale = 1.03f; preferredRange = 3.5f; dmgMult = 1.1f;
     }
 
+    @Override public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return KU.defend(e, src, amt); }
+
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.35f + p.rArmX * 0.5f; p.rArmZ = 0.12f; p.rHandX = 0.6f; p.headX += 0.12f; p.bodyX += 0.08f; }
 
     @Override
@@ -121,7 +123,7 @@ public abstract class BlasphemousKits extends SlayerKit {
                     .tick((e, t, n) -> { if (n == 12) { Combat.shoot(e, BLOODWAVE, mz(e), aim(e, t, 0), 1.2, 12f); Fx.ring(KU.L(e), e.position().add(0, 0.3, 0), 2.5f, BLOOD, 1.5f, 20); snd(e, SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.6f); } })
                     .anim((p, t, a) -> { float k = KU.ready(t, .35f, .8f); p.rArmX = lerp(p.rArmX, -1.55f, k); p.lArmX = lerp(p.lArmX, -1.55f, k); p.rootY -= 0.8f * k; p.rootZ += 1.5f * kick(t, 12 / 30f, .3f); }));
             out.add(AttackDef.of("verdiales_parry").range(0, 5).cd(160).weight(1).dur(20)
-                    .tick((e, t, n) -> { if (n == 1) e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 36, 4)); if (n == 6) { Combat.blast(e, e.position(), 3.5f, 6, 1.0f, e); Fx.ring(KU.L(e), e.position().add(0, 1, 0), 2.5f, GOLD, 1.5f, 22); snd(e, SoundEvents.ANVIL_LAND, 0.6f, 1.8f); } })
+                    .tick((e, t, n) -> { if (n == 1) parryWindow(e, 16); if (n == 6) { Combat.blast(e, e.position(), 3.5f, 6, 1.0f, e); Fx.ring(KU.L(e), e.position().add(0, 1, 0), 2.5f, GOLD, 1.5f, 22); snd(e, SoundEvents.ANVIL_LAND, 0.6f, 1.8f); } })
                     .anim((p, t, a) -> { float k = bump(win(t, .1f, .8f)); p.rArmX = -1.0f * k; p.rArmZ = 0.6f * k; p.bodyX -= 0.15f * k; p.lArmX = -0.6f * k; }));
             out.add(execution("mea_culpa"));
         }

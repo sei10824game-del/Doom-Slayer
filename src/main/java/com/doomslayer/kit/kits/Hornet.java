@@ -38,17 +38,27 @@ public class Hornet extends SlayerKit {
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.4f + p.rArmX * 0.5f; p.rArmZ = 0.15f; p.rHandX = 0.5f; p.bodyX += 0.04f; }
 
+    /** SILK 0..9: +1 per needle hit, spent by silk skills and Bind */
+    static int silk(SlayerEntity e) { return e.getPersistentData().getInt("hn_silk"); }
+    static void silk(SlayerEntity e, int add) { if (add != 0) e.getPersistentData().putInt("hn_silk", Math.max(0, Math.min(9, silk(e) + add))); }
+
     @Override
-    public void passive(SlayerEntity e) { // Bind: silk heal when hurt
-        if (e.tickCount % 200 == 0 && e.getHealth() < e.getMaxHealth() * 0.5f) {
-            e.heal(e.getMaxHealth() * 0.25f); Fx.dustBurst(KU.L(e), SILK, 1f, e.position().add(0, 1, 0), 14, 0.5); snd(e, SoundEvents.WOOL_PLACE, 0.8f, 1.6f);
+    public void passive(SlayerEntity e) { // Bind: 9 silk -> heal
+        if (e.tickCount % 60 == 0 && e.getHealth() < e.getMaxHealth() * 0.6f && silk(e) >= 9) {
+            silk(e, -9); e.heal(e.getMaxHealth() * 0.3f); Fx.dustBurst(KU.L(e), SILK, 1f, e.position().add(0, 1, 0), 14, 0.5); snd(e, SoundEvents.WOOL_PLACE, 0.8f, 1.6f);
         }
     }
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineAll(out);
+        java.util.Map<String, Integer> cost = java.util.Map.of("silkspear", 4, "sharpdart", 4, "thread_storm", 6, "cross_stitch", 5, "rune_rage", 6);
+        for (AttackDef a : out) { Integer c = cost.get(a.id); if (c != null) { a.when((e, t) -> silk(e) >= c); a.onStart((e, t, n) -> silk(e, -c)); } }
+    }
+
+    private void defineAll(List<AttackDef> out) {
         out.add(AttackDef.of("needle_slash").range(0, 3.4f).cd(12).weight(3).dur(12).weapon("needle")
-                .tick((e, t, n) -> { if (n == 4) { slash(e, 70, -60, 10, 0xffffff); melee(e, 3.5, 6, 0.4, 0.1, RED); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.8f); } })
+                .tick((e, t, n) -> { if (n == 4) { slash(e, 70, -60, 10, 0xffffff); silk(e, melee(e, 3.5, 6, 0.4, 0.1, RED)); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.8f); } })
                 .anim((p, t, a) -> swing(p, t, 4 / 12f, 1f)));
 
         // Needle throw (tethered; goes out and returns)
@@ -71,7 +81,7 @@ public class Hornet extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n == 3) { Combat.lunge(e, 1.9, 0.02); snd(e, SoundEvents.FIREWORK_ROCKET_LAUNCH, 0.5f, 2f); }
                     if (n >= 3 && n < 9) Fx.dustBurst(KU.L(e), RED, 1f, e.position().add(0, 1, 0), 3, 0.2);
-                    if (n == 8) melee(e, 3.6, 12, 0.8, 0.15, RED);
+                    if (n == 8) silk(e, melee(e, 3.6, 12, 0.8, 0.15, RED));
                 }).anim((p, t, a) -> { float k = bump(win(t, .1f, .8f)); p.rArmX = -1.55f * k; p.bodyX += 0.9f * k; p.lLegX = -1f * k; p.rLegX = 0.8f * k; p.rootY -= 1.4f * k; p.rootZ = -2f * win(t, .3f, .5f); }));
 
         // Thread Storm: spinning silk blades around Hornet
@@ -85,7 +95,7 @@ public class Hornet extends SlayerKit {
 
         // Cross Stitch: X cut
         out.add(AttackDef.of("cross_stitch").range(0, 3.6f).cd(100).weight(2).dur(26).weapon("needle")
-                .tick((e, t, n) -> { if (n == 8 || n == 13) { slash(e, n == 8 ? 80 : -80, n == 8 ? -80 : 80, n == 8 ? 45 : -45, SILK); melee(e, 3.6, 8, 0.4, 0.15, SILK); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.2f); } })
+                .tick((e, t, n) -> { if (n == 8 || n == 13) { slash(e, n == 8 ? 80 : -80, n == 8 ? -80 : 80, n == 8 ? 45 : -45, SILK); silk(e, melee(e, 3.6, 8, 0.4, 0.15, SILK)); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.2f); } })
                 .anim((p, t, a) -> { float s = (float) Math.sin(t * PI * 2f); p.rArmX = -1.5f; p.rArmZ = 1.0f * s; p.bodyY = 0.7f * s; p.rootZ = -1f * bump(win(t, .2f, .8f)); }));
 
         // Rune Rage: silk-wrap burst of red energy
@@ -100,7 +110,7 @@ public class Hornet extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n >= 2 && n < 8 && t != null) Fx.beam(KU.L(e), e.position().add(0, 1.3, 0), mid(t), SILK, 0.25f, 0.3);
                     if (n == 6 && t != null) { Vec3 d = t.position().subtract(e.position()).normalize(); e.setDeltaMovement(d.x * 1.6, 0.3, d.z * 1.6); e.hurtMarked = true; }
-                    if (n == 13) { slash(e, 80, -80, 25, 0xffffff); melee(e, 3.6, 10, 0.7, 0.25, 0xffffff); }
+                    if (n == 13) { slash(e, 80, -80, 25, 0xffffff); silk(e, melee(e, 3.6, 10, 0.7, 0.25, 0xffffff)); }
                 }).anim((p, t, a) -> { float k = bump(win(t, .05f, .45f)); p.lArmX = -2.2f * k; p.bodyX += 0.4f * win(t, .25f, .6f) * (1 - win(t, .6f, .8f)); p.rArmX = lerp(p.rArmX, -1.4f, win(t, .5f, .6f)); }));
     }
 

@@ -30,10 +30,32 @@ final class KU {
     static void slash(SlayerEntity e, float from, float to, float tilt, int rgb) {
         Fx.arc(L(e), e.position().add(0, 1.3, 0), e.getYRot(), 1.5f, from, to, tilt, rgb, 0.7f, 10);
     }
-    static void melee(SlayerEntity e, double range, float dmg, double kb, double up, int rgb) {
+    static int melee(SlayerEntity e, double range, float dmg, double kb, double up, int rgb) {
+        int n = 0;
         for (LivingEntity f : Combat.cone(e, range, 55)) {
-            Combat.damage(e, f, dmg); Combat.knock(f, e.position(), kb, up); Fx.dustBurst(L(e), rgb, 1f, mid(f), 6, 0.3); Fx.sparks(L(e), mid(f), 4);
+            Combat.damage(e, f, dmg); Combat.knock(f, e.position(), kb, up); Fx.dustBurst(L(e), rgb, 1f, mid(f), 6, 0.3); Fx.sparks(L(e), mid(f), 4); n++;
         }
+        return n;
+    }
+    /** open a parry window (ticks); see {@link #defend} */
+    static void parryWindow(SlayerEntity e, int ticks) { e.getPersistentData().putLong("ku_parry", e.level().getGameTime() + ticks); }
+    /** Parry: inside the window, melee hits are negated (attacker staggered) and vanilla projectiles are batted back at their shooter. */
+    static float defend(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) {
+        if (e.level().getGameTime() >= e.getPersistentData().getLong("ku_parry")) return amt;
+        net.minecraft.world.entity.Entity direct = src.getDirectEntity(), att = src.getEntity();
+        if (direct instanceof net.minecraft.world.entity.projectile.Projectile pr && !(pr instanceof com.doomslayer.entity.SlayerProjectile)) {
+            pr.setDeltaMovement(pr.getDeltaMovement().scale(-1.3)); pr.setOwner(e); pr.hurtMarked = true;
+            Fx.sparks(L(e), pr.position(), 10); snd(e, SoundEvents.ANVIL_LAND, 0.7f, 2f); return 0;
+        }
+        if (att instanceof LivingEntity a && direct == att) {
+            Vec3 c = e.position().add(0, 1.2, 0).add(e.getViewVector(1f).scale(0.8));
+            Fx.sparks(L(e), c, 16); Fx.ring(L(e), c, 1f, 0xffe090, 1.4f, 14); snd(e, SoundEvents.ANVIL_LAND, 0.9f, 1.9f);
+            Combat.knock(a, e.position(), 0.6, 0.1);
+            a.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 40, 3));
+            a.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.WEAKNESS, 40, 1));
+            return 0;
+        }
+        return amt;
     }
     static float ready(float t, float in, float out) { return win(t, 0, in) * (1 - win(t, out, 1)); }
     /** two-handed shouldered long gun */

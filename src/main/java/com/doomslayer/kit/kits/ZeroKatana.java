@@ -35,6 +35,8 @@ public class ZeroKatana extends SlayerKit {
         idleWeaponR = "katana";
     }
 
+    @Override public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return KU.defend(e, src, amt); }
+
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.2f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.8f; p.bodyX += 0.06f; }
 
     @Override
@@ -52,6 +54,7 @@ public class ZeroKatana extends SlayerKit {
         out.add(AttackDef.of("slash").range(0, 3.2f).cd(12).weight(3).dur(12).weapon("katana")
                 .tick((e, t, n) -> {
                     if (n == 2) Combat.lunge(e, 0.5, 0);
+                    if (n == 1) parryWindow(e, 8);
                     if (n == 4) { slash(e, 80, -70, 5, NEON); melee(e, 3.3, 8, 0.5, 0.1, NEON); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.7f); }
                 }).anim((p, t, a) -> swing(p, t, 4 / 12f, 1.1f)));
 
@@ -104,10 +107,18 @@ public class ZeroKatana extends SlayerKit {
                     p.rArmX = -1.5f + 0.6f * Math.abs(s); p.rArmZ = 1.2f * s; p.lArmX = -0.8f; p.bodyY = 0.8f * s; p.headY = -0.4f * s; p.lLegX = -0.5f; p.rLegX = 0.4f; p.rootY -= 0.6f;
                 }));
 
+        // roll: dodge with i-frames
+        out.add(AttackDef.of("roll").range(0, 10).cd(90).weight(2).dur(14).noFace()
+                .when((e, t) -> !Combat.around(e, e.position(), 5).isEmpty())
+                .tick((e, t, n) -> {
+                    if (n == 1) { e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 10, 4, false, false)); Vec3 f = e.getViewVector(1f); e.setDeltaMovement(f.x * 0.9, 0.05, f.z * 0.9); e.hurtMarked = true; snd(e, SoundEvents.ARMOR_EQUIP_LEATHER, 0.8f, 1.5f); }
+                    if (n < 9) Fx.burst(L(e), ParticleTypes.CLOUD, e.position().add(0, 0.2, 0), 2, 0.2, 0.01);
+                }).anim((p, t, a) -> { float k = bump(win(t, 0f, 1f)); p.rootX += 6.28f * win(t, .05f, .9f); p.rootY -= 2.5f * k; p.rArmX = -1f * k; p.lArmX = -1f * k; p.lLegX = -1.2f * k; p.rLegX = -1.2f * k; }));
+
         // deflect: swing to bat away; emulate with brief resistance + shockwave
         out.add(AttackDef.of("deflect").range(0, 6).cd(100).weight(1).dur(14).weapon("katana")
                 .tick((e, t, n) -> {
-                    if (n == 1) e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 24, 4));
+                    if (n == 1) parryWindow(e, 12);
                     if (n == 4) { slash(e, 60, -60, 20, 0xffffff); Combat.blast(e, e.position(), 3.5f, 5, 1f, e); Fx.ring(L(e), e.position().add(0, 1.2, 0), 2f, 0xffffff, 1.5f, 20); snd(e, SoundEvents.ANVIL_LAND, 0.5f, 2f); }
                 }).anim((p, t, a) -> swing(p, t, 4 / 14f, 0.6f)));
     }
