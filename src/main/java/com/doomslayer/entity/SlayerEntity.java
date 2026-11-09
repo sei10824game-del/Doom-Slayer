@@ -157,7 +157,27 @@ public class SlayerEntity extends PathfinderMob {
             entityData.set(STAY, !isStaying());
             p.displayClientMessage(Component.literal(kit.name + (isStaying() ? ": hold position" : ": follow")), true);
         }
+        else if (p.getUUID().equals(getOwnerId())) { // manual retarget: next-nearest hostile around the owner
+            LivingEntity cur = getTarget(), best = null; double bd = Double.MAX_VALUE;
+            for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(20), x -> x != cur && isHostile(this, x))) {
+                double d = e.distanceToSqr(p); if (d < bd) { bd = d; best = e; }
+            }
+            setTarget(best); if (isAttacking()) interruptAttack();
+            p.displayClientMessage(Component.literal(kit.name + (best == null ? ": no other target" : ": target -> " + best.getName().getString())), true);
+        }
         return InteractionResult.SUCCESS;
+    }
+
+    /** AI retarget: drop a far-away target when something closer is threatening us (group fights) */
+    private void retarget() {
+        LivingEntity cur = getTarget(); if (isAttacking()) return;
+        double curD = cur == null ? Double.MAX_VALUE : distanceTo(cur);
+        LivingEntity hurter = getLastHurtByMob(), best = null; double bd = Double.MAX_VALUE;
+        if (hurter != null && hurter != cur && isHostile(this, hurter) && tickCount - getLastHurtByMobTimestamp() < 100 && distanceTo(hurter) + 3 < curD) best = hurter;
+        else for (LivingEntity e : level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(5), x -> x != cur && isHostile(this, x))) {
+            double d = distanceTo(e); if (d < bd && d + 3 < curD && curD > 6) { bd = d; best = e; }
+        }
+        if (best != null) setTarget(best);
     }
 
     @Override public Component getTypeName() { return Component.literal(kit.name + " (" + kit.game + ")"); }
@@ -195,6 +215,7 @@ public class SlayerEntity extends PathfinderMob {
         @Override public boolean canUse() { LivingEntity t = getTarget(); return t != null && t.isAlive(); }
         @Override public boolean canContinueToUse() { return canUse(); }
         @Override public void tick() {
+            if (tickCount % 10 == 0) retarget();
             LivingEntity t = getTarget(); if (t == null) return;
             if (!isAttacking()) {
                 getLookControl().setLookAt(t, 30, 30);
