@@ -82,22 +82,54 @@ final class KU {
         p.bodyX = track(t, 0, 0, .25f, -0.2f, .5f, 0.35f, 1, 0);
         p.rLegX = track(t, 0, 0, .25f, 0.3f, .5f, -0.4f, 1, 0); p.lLegX = track(t, 0, 0, .25f, -0.3f, .5f, 0.4f, 1, 0);
     }
-    /** horizontal sweep strike with one arm (hit at frame h of 0..1) */
-    static void swing(Pose p, float t, float h, float wind) {
-        p.rArmX = track(t, 0, -0.2f, h * .6f, -2.2f * wind, h, -1.2f, h + .2f, -1.4f, 1, -0.2f);
-        p.rArmZ = track(t, 0, 0.1f, h * .6f, 0.6f * wind, h, -0.6f, h + .2f, -0.7f, 1, 0.1f);
-        p.rHandX = track(t, 0, 0.3f, h * .6f, 0.7f, h, -0.3f, 1, 0.3f);
-        p.bodyY = track(t, 0, 0, h * .6f, 0.5f * wind, h, -0.55f, h + .2f, -0.6f, 1, 0); p.headY = -p.bodyY * 0.6f;
-        p.lArmX = track(t, 0, 0, h * .6f, -0.8f, 1, 0);
-        p.lLegX = track(t, 0, 0, h, -0.4f, 1, 0); p.rLegX = track(t, 0, 0, h, 0.3f, 1, 0);
-        p.rootZ = -1.6f * bump(win(t, h * .5f, h + .3f));
+    /** 4-phase value curve: base -> coil (decelerating wind-up) -> strike (accelerating snap) -> follow-through (decelerating overshoot) -> base */
+    static float kf(float u, float base, float coil, float strike, float follow) {
+        if (u < .36f) return lerp(base, coil, outCubic(win(u, 0, .36f)));
+        if (u < .47f) { float k = win(u, .36f, .47f); return lerp(coil, strike, k * k); }
+        if (u < .70f) return lerp(strike, follow, outCubic(win(u, .47f, .70f)));
+        return lerp(follow, base, smooth(win(u, .70f, 1f)));
     }
-    static void stab(Pose p, float t, float h) {
-        p.rArmX = track(t, 0, -0.2f, h * .7f, -0.5f, h, -1.55f, h + .2f, -1.5f, 1, -0.2f);
-        p.rArmY = track(t, 0, 0, h * .7f, 0.5f, h, 0, 1, 0);
-        p.bodyY = track(t, 0, 0, h * .7f, 0.6f, h, -0.3f, 1, 0); p.headY = -p.bodyY * 0.5f;
-        p.bodyX = track(t, 0, 0, h * .7f, -0.15f, h, 0.4f, 1, 0);
-        p.lLegX = track(t, 0, 0, h, -0.6f, 1, 0); p.rLegX = track(t, 0, 0, h, 0.5f, 1, 0);
-        p.rootZ = -2f * bump(win(t, h * .6f, h + .3f));
+    /** whole-body strike. u 0..1 with the impact at ~0.47. kind: 0 forehand, 1 backhand, 2 overhead chop, 3 thrust */
+    static void strikePose(Pose p, float u, int kind, float power) {
+        float k = power;
+        switch (kind) {
+            case 0, 1 -> {
+                float d = kind == 0 ? 1 : -1;
+                p.rArmX = kf(u, -0.2f, -2.1f * k, -1.25f, -0.95f); p.rArmZ = kf(u, 0.1f, 1.05f * d * k, -0.95f * d, -1.15f * d); p.rArmY = kf(u, 0, 0.25f * d, -0.35f * d, -0.3f * d);
+                p.rHandX = kf(u, 0.4f, 1.1f, -0.7f, -0.5f); p.rHandZ = kf(u, 0, 0.5f * d, -0.6f * d, -0.4f * d);
+                p.bodyY = kf(u, 0, 0.95f * d * k, -1.0f * d, -1.1f * d); p.headY = -0.55f * p.bodyY; p.bodyX = kf(u, 0, -0.18f, 0.35f, 0.3f); p.bodyZ = kf(u, 0, -0.12f * d, 0.1f * d, 0.08f * d);
+                p.lArmX = kf(u, 0, -0.6f, 0.35f, 0.2f); p.lArmZ = kf(u, 0, -0.55f * d, 0.45f * d, 0.3f * d);
+                p.lLegX = kf(u, 0, 0.3f, -0.8f, -0.6f); p.rLegX = kf(u, 0, -0.35f, 0.55f, 0.45f); p.lLegZ += 0.1f * (kf(u, 0, 0, 1, 1)); p.rLegZ -= 0.1f * (kf(u, 0, 0, 1, 1));
+                p.rootZ += kf(u, 0, 0.6f, -1.9f, -2.1f); p.rootY += kf(u, 0, -0.6f, -1.3f, -1.0f); p.rootRoll += kf(u, 0, -0.08f * d, 0.1f * d, 0.06f * d);
+            }
+            case 2 -> {
+                p.rArmX = kf(u, -0.2f, -3.05f * k, -0.45f, -0.7f); p.rArmZ = kf(u, 0.1f, 0.25f, -0.1f, 0.1f); p.rHandX = kf(u, 0.4f, 1.3f, -0.5f, -0.2f);
+                p.lArmX = kf(u, 0, -2.4f * k, -0.35f, -0.5f); p.lArmZ = kf(u, 0, -0.3f, 0.1f, 0);
+                p.bodyX = kf(u, 0, -0.45f * k, 0.8f, 0.65f); p.headX = kf(u, 0, -0.3f, 0.2f, 0.25f); p.bodyY = kf(u, 0, 0.2f, -0.15f, -0.1f);
+                p.lLegX = kf(u, 0, 0.2f, -0.9f, -0.7f); p.rLegX = kf(u, 0, -0.4f, 0.7f, 0.55f);
+                p.rootY += kf(u, 0, 0.5f, -2.2f, -1.6f); p.rootZ += kf(u, 0, 0.8f, -1.6f, -1.8f);
+            }
+            default -> { // thrust
+                p.rArmX = kf(u, -0.2f, -0.55f, -1.58f, -1.5f); p.rArmY = kf(u, 0, 0.6f * k, -0.05f, 0); p.rArmZ = kf(u, 0.1f, 0.5f, 0, 0.05f); p.rHandX = kf(u, 0.4f, 0.7f, 0.0f, 0.1f);
+                p.lArmX = kf(u, 0, -0.9f, 0.4f, 0.3f); p.lArmZ = kf(u, 0, -0.5f, 0.5f, 0.4f);
+                p.bodyY = kf(u, 0, 0.7f * k, -0.45f, -0.4f); p.headY = -0.5f * p.bodyY; p.bodyX = kf(u, 0, -0.2f, 0.5f, 0.45f);
+                p.lLegX = kf(u, 0, 0.4f, -1.0f, -0.85f); p.rLegX = kf(u, 0, -0.5f, 0.7f, 0.6f); p.rootY += kf(u, 0, -0.5f, -1.6f, -1.3f); p.rootZ += kf(u, 0, 1.0f, -2.6f, -2.8f);
+            }
+        }
+    }
+    /** one swing with impact at frame h (0..1 of the attack) */
+    static void swing(Pose p, float t, float h, float wind) { strikePose(p, remap(t, h), 0, Math.min(1.2f, wind)); }
+    static void stab(Pose p, float t, float h) { strikePose(p, remap(t, h), 3, 1f); }
+    static float remap(float t, float h) { return t < h ? 0.47f * t / Math.max(h, 0.01f) : 0.47f + 0.53f * (t - h) / Math.max(1 - h, 0.01f); }
+    /** attack window for several hits: each hit gets its own wind-up/strike/recover (alternating kinds) */
+    static com.doomslayer.anim.Anim comboAnim(int[] hits, int dur, int[] kinds) {
+        return (p, t, a) -> {
+            float tick = t * dur;
+            for (int i = 0; i < hits.length; i++) {
+                float hs = hits[i] - 5.5f, he = hits[i] + 6f;
+                if (tick >= hs && tick <= he) { strikePose(p, (tick - hs) / (he - hs), kinds[i % kinds.length], 1f); return; }
+            }
+            stance(p, 0.7f); p.rArmX = -0.9f; p.rArmZ = 0.3f; p.lArmX = -0.8f; p.rHandX = 0.6f; // between hits: guard up, sword raised
+        };
     }
 }

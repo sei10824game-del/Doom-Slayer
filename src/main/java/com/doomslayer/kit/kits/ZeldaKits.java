@@ -97,8 +97,27 @@ public abstract class ZeldaKits extends SlayerKit {
         if (e.getOwner() != null) e.getOwner().displayClientMessage(Component.literal(name + ": a fairy heals you! (" + (fairies - used - 1) + " left)"), true);
         return true;
     }
-    @Override public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return KU.defend(e, src, amt); }
-    @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.3f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.5f; p.bodyX += 0.04f; if (!look.noShield) p.lArmX = -0.2f + p.lArmX * 0.5f; }
+    /** Shield: perfect-parry window first; otherwise hits from the front are blocked (projectiles fully, melee mostly). */
+    @Override
+    public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) {
+        float r = KU.defend(e, src, amt);
+        if (r <= 0 || look.noShield) return r;
+        net.minecraft.world.entity.Entity from = src.getDirectEntity() != null ? src.getDirectEntity() : src.getEntity();
+        if (from == null || src.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR)) return r;
+        Vec3 to = from.position().subtract(e.position()).multiply(1, 0, 1);
+        if (to.lengthSqr() < 1e-4 || to.normalize().dot(e.getViewVector(1f).multiply(1, 0, 1).normalize()) < 0.25) return r; // must come from the front
+        float chance = e.isAttacking() ? 0.4f : 0.8f;
+        if (e.getRandom().nextFloat() > chance) return r;
+        Vec3 c = e.position().add(0, 1.2, 0).add(e.getViewVector(1f).scale(0.8));
+        Fx.sparks(L(e), c, 10); Fx.dustBurst(L(e), look.trim, 0.9f, c, 6, 0.2); snd(e, SoundEvents.SHIELD_BLOCK, 1f, 1f + 0.2f * e.getRandom().nextFloat());
+        if (from instanceof net.minecraft.world.entity.projectile.Projectile) return 0;
+        if (from instanceof LivingEntity a) Combat.knock(a, e.position(), 0.35, 0.05);
+        return r * 0.15f;
+    }
+    @Override public void idle(Pose p, SlayerEntity e, float age, float m) {
+        p.rArmX = -0.55f + p.rArmX * 0.5f; p.rArmZ = 0.2f; p.rHandX = 0.7f; p.bodyX += 0.05f; p.bodyY += 0.2f; p.headY -= 0.1f;
+        if (!look.noShield) { p.lArmX = -1.15f; p.lArmY = 0.5f; p.lArmZ = 0.3f; p.lHandX = -0.2f; p.bodyY += 0.15f; } // shield held up in front of the chest
+    }
     @Override public void passive(SlayerEntity e) { if (e.tickCount % 100 == 0 && e.getHealth() < e.getMaxHealth() && Combat.around(e, e.position(), 8).isEmpty()) e.heal(3); }
 
     @Override
@@ -133,11 +152,12 @@ public abstract class ZeldaKits extends SlayerKit {
     AttackDef melee(String id, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) {
         return base(id, "sword", 0, range, cd, dur, weight).tick((e, t, n) -> {
             for (int i = 0; i < hits.length; i++) if (n == hits[i]) {
-                boolean r = i % 2 == 0; slash(e, r ? 70 : -60, r ? -60 : 70, k == K.OVER ? 40 : 10, rgb); KU.melee(e, range + 0.1, dmg, kb, up, rgb); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.3f + 0.05f * i);
+                boolean r = i % 2 == 0; slash(e, r ? 80 : -70, r ? -70 : 80, k == K.OVER ? 60 : (k == K.STAB ? 0 : 10 + 12 * i), rgb); KU.melee(e, range + 0.1, dmg, kb, up, rgb); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.3f + 0.05f * i);
                 if (i == 0 && k == K.DASH) Combat.lunge(e, 1.0, 0);
+                Fx.burst(L(e), ParticleTypes.CRIT, e.position().add(e.getViewVector(1f).scale(2)).add(0, 1.2, 0), 6, 0.3, 0.25);
             }
-            if (n == 1 && (k == K.COMBO)) Combat.lunge(e, 0.35, 0);
-        }).anim(anim(k, frame, hits.length));
+            for (int h : hits) if (n == h - 3) Combat.lunge(e, k == K.STAB ? 0.55 : 0.32, 0); // step into the blow
+        }).anim(k == K.DASH ? anim(k, frame, 1) : KU.comboAnim(hits, dur, k == K.OVER ? new int[] {2} : k == K.STAB ? new int[] {3} : new int[] {0, 1, 0, 3}));
     }
     AttackDef proj(String id, String w, double min, double max, int cd, int dur, int fire, int count, double spread, ProjStyle st, double speed, float dmg, K k, net.minecraft.sounds.SoundEvent s, float pitch) {
         return base(id, w, min, max, cd, dur, 3).tick((e, t, n) -> {
