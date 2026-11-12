@@ -27,7 +27,7 @@ import org.joml.Matrix4f;
  * darts, missiles with exhaust flame, spinning grenades and saw discs, plus a tapering ribbon trail. All textures are generated procedurally.
  */
 public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
-    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC;
+    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING;
     public ProjectileRenderer(EntityRendererProvider.Context c) { super(c); }
 
     // ---------- procedural textures ----------
@@ -84,6 +84,10 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             if (x >= 18 && x <= 25 && y >= 4 && y <= 6) return gray(255, 170); // lever
             return 0;
         });
+        RING = tex("ring", 64, 64, (x, y) -> {
+            float d = (float) Math.hypot(x - 31.5f, y - 31.5f) / 32f; float a = (float) Math.exp(-Math.pow((d - 0.82f) * 11f, 2)) * (1 - sstep(0.9f, 1f, d));
+            return argb((int) (255 * a), 0xffffff);
+        });
         DISC = tex("disc", 32, 32, (x, y) -> {
             float dx = x - 15.5f, dy = y - 15.5f, r = (float) Math.hypot(dx, dy), ang = (float) Math.atan2(dy, dx);
             float R = 10f + 5f * (float) Math.pow(Math.max(0, Math.cos(ang * 8)), 3);
@@ -124,9 +128,12 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
         Vec3 ePos = new Vec3(Mth.lerp(pt, p.xo, p.getX()), Mth.lerp(pt, p.yo, p.getY()), Mth.lerp(pt, p.zo, p.getZ()));
         Vec3 cam = entityRenderDispatcher.camera.getPosition(), toCam = cam.subtract(ePos).normalize();
         Vec3 vel = p.getDeltaMovement(); if (vel.lengthSqr() < 1e-6) vel = p.getViewVector(1f);
-        float t = p.tickCount + pt, sz = s.size * (1 + 0.07f * (float) Math.sin(t * 1.7f));
-        int col = s.rgb, hot = mix(col, 0xffffff, 0.7f), full = LightTexture.FULL_BRIGHT;
+        int col = p.tint() != 0 ? p.tint() : s.rgb;
+        float baseSize = p.sizeOv() > 0 ? p.sizeOv() : s.size;
+        float t = p.tickCount + pt, sz = baseSize * (1 + 0.07f * (float) Math.sin(t * 1.7f));
+        int hot = mix(col, 0xffffff, 0.7f), full = LightTexture.FULL_BRIGHT;
         ps.pushPose();
+        if (s.visual && effect(p, s, ps, buf, ePos, toCam, col, baseSize, pt)) { ps.popPose(); return; }
         ps.translate(0, 0, 0);
         VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW));
         trail(p, s, ps, buf, ePos, toCam, sz, col, hot);
@@ -167,6 +174,70 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             }
         }
         ps.popPose();
+    }
+
+    /** purely visual carriers: beam segment, flash, fireball blast, ground shock ring. returns true when handled */
+    private boolean effect(SlayerProjectile p, ProjStyle s, PoseStack ps, MultiBufferSource buf, Vec3 ePos, Vec3 toCam, int col, float size, float pt) {
+        ProjStyle.Shape sh = s.resolved();
+        int full = LightTexture.FULL_BRIGHT, life = Math.max(1, p.life());
+        float t = Mth.clamp((p.tickCount + pt) / life, 0, 1), fade = 1 - t * t;
+        int hot = mix(col, 0xffffff, 0.75f);
+        switch (sh) {
+            case BEAM -> {
+                Vec3 end = p.end().subtract(ePos);
+                VertexConsumer g = buf.getBuffer(RenderType.eyes(CAPSULE));
+                ribbon(g, ps, Vec3.ZERO, end, toCam, size * 1.0f, size * 1.0f, col, 0.8f * fade, full);
+                ribbon(g, ps, Vec3.ZERO, end, toCam, size * 0.42f, size * 0.42f, hot, fade, full);
+                billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), size * 2.2f, col, 0.6f * fade, 0, full);
+                ps.pushPose(); ps.translate(end.x, end.y, end.z); billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), size * 2.8f, hot, 0.8f * fade, 0, full); ps.popPose();
+                return true;
+            }
+            case FLASH -> {
+                float k = size * (1.3f - 0.6f * t);
+                spin(ps, buf.getBuffer(RenderType.eyes(STAR)), k * 2.2f, mix(col, 0xffffff, 0.5f), p.getId() * 1.7f + t * 2f, full);
+                billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), k * 1.3f, col, 0.9f * fade, 0, full);
+                billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), k * 0.55f, 0xffffff, fade, 0, full);
+                return true;
+            }
+            case BLAST -> { // cauliflower fireball: hot core, orange puffs bursting outward, grey smoke lingering
+                float grow = com.doomslayer.anim.Keys.outCubic(t), r = size * (0.45f + 0.9f * grow);
+                java.util.Random rnd = new java.util.Random(p.getId() * 7919L);
+                VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW)), smoke = buf.getBuffer(RenderType.entityTranslucent(GLOW));
+                for (int i = 0; i < 7; i++) {
+                    Vec3 o = new Vec3(rnd.nextGaussian(), rnd.nextGaussian() * 0.6 + 0.2, rnd.nextGaussian()).scale(r * 0.55 * grow);
+                    ps.pushPose(); ps.translate(o.x, o.y, o.z);
+                    billboard(ps, add, r * (0.55f + 0.3f * rnd.nextFloat()), mix(col, 0xffd060, rnd.nextFloat() * 0.6f), 0.85f * fade, 0, full);
+                    if (t > 0.35f) billboard(ps, smoke, r * (0.7f + 0.4f * rnd.nextFloat()), 0x444444, 0.5f * (1 - t) * (t - 0.35f) * 3f, 0, full);
+                    ps.popPose();
+                }
+                billboard(ps, add, r * 0.8f * (1 - t * t), 0xffffff, 1f - t, 0, full);
+                spin(ps, buf.getBuffer(RenderType.eyes(STAR)), r * 2.4f * (0.5f + t), mix(col, 0xffffff, 0.4f), t * 1.5f, full);
+                return true;
+            }
+            case SLASH -> { // crescent sweep: the bright head races along the arc, the tail thins out and fades
+                Vec3 se = p.end(); double yaw = Math.toRadians(se.x), tilt = Math.toRadians(p.getDeltaMovement().x); float rad = p.radius();
+                float prog = Mth.clamp((p.tickCount + pt) / (life * 0.55f), 0, 1), from = (float) se.y, to = (float) se.z, head =com.doomslayer.anim.Keys.lerp(from, to, com.doomslayer.anim.Keys.outCubic(prog));
+                int N = 16; Vec3 prev = null; VertexConsumer g = buf.getBuffer(RenderType.eyes(CAPSULE));
+                for (int i = 0; i <= N; i++) {
+                    float ang =com.doomslayer.anim.Keys.lerp(from, head, i / (float) N); double a = Math.toRadians(ang), x = -Math.sin(a) * rad, fwd = Math.cos(a) * rad, y = x * Math.sin(tilt); x *= Math.cos(tilt);
+                    Vec3 q = new Vec3(x * Math.cos(yaw) - fwd * Math.sin(yaw), y, x * Math.sin(yaw) + fwd * Math.cos(yaw));
+                    if (prev != null) {
+                        float w0 = size * 0.9f * ((i - 1f) / N), w1 = size * 0.9f * (i / (float) N), al = (i / (float) N) * (1 - t) * (1 - t);
+                        ribbon(g, ps, prev, q, toCam, w0, w1, col, 0.85f * al + 0.05f, full); ribbon(g, ps, prev, q, toCam, w0 * 0.4f, w1 * 0.4f, hot, al, full);
+                    }
+                    prev = q;
+                }
+                return true;
+            }
+            case RING -> {
+                float rr = size * (0.25f + 0.75f * com.doomslayer.anim.Keys.outCubic(t));
+                Vec3 u = new Vec3(rr, 0, 0), v = new Vec3(0, 0, rr);
+                sprite(buf.getBuffer(RenderType.eyes(RING)), ps, new Vec3(0, 0.12, 0), u, v, toCam, col, 0.9f * fade, full);
+                sprite(buf.getBuffer(RenderType.eyes(RING)), ps, new Vec3(0, 0.12, 0), u.scale(0.92), v.scale(0.92), toCam, hot, 0.5f * fade, full);
+                return true;
+            }
+            default -> { return false; }
+        }
     }
 
     private void billboard(PoseStack ps, VertexConsumer vc, float r, int rgb, float a, float rot, int light) { spinRaw(ps, vc, r, rgb, rot, a, light); }

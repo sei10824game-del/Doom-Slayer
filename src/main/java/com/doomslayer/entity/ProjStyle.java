@@ -22,7 +22,10 @@ public class ProjStyle {
     public float explodeRadius = 0, explodeKb = 0.6f; public boolean bounce; public float homing;
     public ParticleOptions trail;
     public boolean glow = true, visible = true;
-    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC }
+    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC, BEAM, FLASH, BLAST, RING, SLASH }
+    /** visual-only entity (tracer, beam segment, flash, blast, ring): never collides or damages */
+    public boolean visual;
+    public ProjStyle visual() { visual = true; return this; }
     public Shape shape = Shape.AUTO;
     public Tick onTick = p -> {};
     public Hit onHit = null; // null -> default impact (sparks / explosion)
@@ -66,6 +69,14 @@ public class ProjStyle {
     public static final ProjStyle ARROW = make().color(0xdddddd).size(0.25f).life(80).gravity(0.02).trail(ParticleTypes.CRIT);
     public static final ProjStyle ICE = make().color(0x99e8ff).size(0.5f).life(60).explode(3f).trail(ParticleTypes.SNOWFLAKE);
 
+    // ---- visual-only effect carriers (spawned by Fx / Combat) ----
+    public static final ProjStyle VIS_TRACER = make().color(0xffe080).size(0.1f).shape(Shape.BOLT).visual();
+    public static final ProjStyle VIS_BEAM = make().color(0xffffff).size(0.2f).shape(Shape.BEAM).visual();
+    public static final ProjStyle VIS_FLASH = make().color(0xffe080).size(0.5f).shape(Shape.FLASH).visual();
+    public static final ProjStyle VIS_BLAST = make().color(0xff8020).size(2f).shape(Shape.BLAST).visual();
+    public static final ProjStyle VIS_SLASH = make().color(0xffffff).size(0.5f).shape(Shape.SLASH).visual();
+    public static final ProjStyle VIS_RING = make().color(0xffffff).size(2f).shape(Shape.RING).visual();
+
     public static void defaultImpact(SlayerProjectile p, Vec3 pos, Entity hit) {
         ServerLevel l = (ServerLevel) p.level();
         ProjStyle s = p.style();
@@ -73,7 +84,7 @@ public class ProjStyle {
             Fx.explosion(l, pos, s.explodeRadius);
             Fx.sound(l, pos, SoundEvents.GENERIC_EXPLODE, 1f, 1f);
         } else {
-            Fx.sparks(l, pos, 6); Fx.dustBurst(l, s.rgb, 1f, pos, 6, 0.15);
+            Fx.flash(l, pos, s.rgb, Math.max(0.4f, s.size * 1.6f));
         }
     }
 }

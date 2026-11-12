@@ -19,37 +19,28 @@ public final class Fx {
     public static void burst(ServerLevel l, ParticleOptions o, Vec3 p, int n, double spread, double speed) { l.sendParticles(o, p.x, p.y, p.z, n, spread, spread, spread, speed); }
     public static void dustBurst(ServerLevel l, int rgb, float size, Vec3 p, int n, double spread) { burst(l, dust(rgb, size), p, n, spread, 0); }
 
-    /** straight tracer line */
+    /** straight energy beam segment (custom-rendered, fades in ~3 ticks) */
     public static void beam(ServerLevel l, Vec3 a, Vec3 b, int rgb, float size, double step) {
-        Vec3 d = b.subtract(a); double len = d.length(); if (len < 0.01) return;
-        Vec3 u = d.scale(1 / len); ParticleOptions o = dust(rgb, size);
-        for (double s = 0; s <= len; s += step) { Vec3 q = a.add(u.scale(s)); l.sendParticles(o, q.x, q.y, q.z, 1, 0, 0, 0, 0); }
+        if (a.distanceToSqr(b) < 1e-4 || a.distanceToSqr(b) > 90 * 90) return;
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_BEAM, a, Vec3.ZERO, rgb, 0.04f + size * 0.1f, 3, b);
     }
     /**
-     * Swing arc (the "slash"): points on an arc of radius r around center, in a plane tilted by tiltDeg around the facing axis,
-     * sweeping from fromDeg to toDeg (0 = straight ahead, + = to the viewer's left). Call each tick with a growing 'toDeg' to animate the trail.
+     * Swing arc (the "slash"): a glowing crescent on an arc of radius r around center, plane tilted by tiltDeg around the facing axis,
+     * sweeping from fromDeg to toDeg (0 = straight ahead, + = to the viewer's left). Custom-rendered sweep that fades out.
      */
     public static void arc(ServerLevel l, Vec3 center, float yawDeg, float r, float fromDeg, float toDeg, float tiltDeg, int rgb, float size, int pts) {
-        double yaw = Math.toRadians(yawDeg), tilt = Math.toRadians(tiltDeg);
-        ParticleOptions o = dust(rgb, size);
-        for (int i = 0; i <= pts; i++) {
-            double a = Math.toRadians(fromDeg + (toDeg - fromDeg) * i / pts);
-            double x = -Math.sin(a) * r, fwd = Math.cos(a) * r; // local: x=right-left, fwd
-            double y = x * Math.sin(tilt); x *= Math.cos(tilt);
-            // rotate by yaw (MC yaw 0 = +z)
-            double wx = x * Math.cos(yaw) - fwd * Math.sin(yaw), wz = x * Math.sin(yaw) + fwd * Math.cos(yaw);
-            l.sendParticles(o, center.x + wx, center.y + y, center.z + wz, 1, 0, 0, 0, 0);
-        }
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_SLASH, center, new Vec3(tiltDeg, 0, 0), rgb, Math.max(0.3f, size) * 0.5f + r * 0.0f, 6, new Vec3(yawDeg, fromDeg, toDeg), r);
     }
-    /** horizontal expanding ring */
+    /** muzzle / impact flash */
+    public static void flash(ServerLevel l, Vec3 p, int rgb, float size) {
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_FLASH, p, Vec3.ZERO, rgb, size, 4, null);
+    }
+    /** expanding shock ring on the ground (custom-rendered) */
     public static void ring(ServerLevel l, Vec3 c, float r, int rgb, float size, int pts) {
-        ParticleOptions o = dust(rgb, size);
-        for (int i = 0; i < pts; i++) { double a = Math.PI * 2 * i / pts; l.sendParticles(o, c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r, 1, 0, 0, 0, 0); }
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_RING, c, Vec3.ZERO, rgb, r, 10, null);
     }
-    public static void sparks(ServerLevel l, Vec3 p, int n) { burst(l, ParticleTypes.CRIT, p, n, 0.15, 0.25); }
+    public static void sparks(ServerLevel l, Vec3 p, int n) { flash(l, p, 0xffe8a0, 0.3f + Math.min(n, 12) * 0.03f); }
     public static void explosion(ServerLevel l, Vec3 p, float size) {
-        burst(l, size > 3 ? ParticleTypes.EXPLOSION_EMITTER : ParticleTypes.EXPLOSION, p, 1, 0, 0);
-        burst(l, ParticleTypes.FLAME, p, (int) (12 * size), size * 0.25, 0.08);
-        burst(l, ParticleTypes.LARGE_SMOKE, p, (int) (8 * size), size * 0.25, 0.03);
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_BLAST, p, Vec3.ZERO, 0xff8020, Math.max(1f, size), 12, null);
     }
 }

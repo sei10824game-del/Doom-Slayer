@@ -96,8 +96,10 @@ public final class Combat {
             damage(s, (LivingEntity) eh.getEntity(), dmg); hits++;
             Fx.sparks(l, eh.getLocation(), 4); ignore = eh.getEntity(); cur = eh.getLocation();
         }
-        Fx.beam(l, from, end, tracerRgb, 0.5f, 0.6);
-        if (hits == 0 && bh.getType() != HitResult.Type.MISS) Fx.burst(l, ParticleTypes.SMOKE, end, 3, 0.05, 0.01);
+        double len = end.subtract(from).length();
+        if (len > 0.5) SlayerProjectile.visual(l, ProjStyle.VIS_TRACER, from, end.subtract(from).scale(1 / 3.0), tracerRgb, 0.1f, 3, null); // fast glowing tracer streak
+        Fx.flash(l, from, tracerRgb, 0.45f);
+        if (bh.getType() != HitResult.Type.MISS) Fx.flash(l, end, tracerRgb, hits > 0 ? 0.4f : 0.3f);
         return hits;
     }
     public static SlayerProjectile shoot(SlayerEntity s, ProjStyle style, Vec3 from, Vec3 dir, double speed, float dmg) {
@@ -105,6 +107,7 @@ public final class Combat {
         p.setOwner(s); p.setStyle(style); p.damage = dmg;
         p.setPos(from); p.setDeltaMovement(dir.normalize().scale(speed));
         s.level().addFreshEntity(p);
+        if (style.visible && style.size < 0.7f) Fx.flash((ServerLevel) s.level(), from, style.rgb, 0.4f + style.size * 0.5f); // muzzle flash
         return p;
     }
     public static void sound(SlayerEntity s, net.minecraft.sounds.SoundEvent ev, float vol, float pitch) { Fx.sound((ServerLevel) s.level(), s.position(), ev, vol, pitch); }
