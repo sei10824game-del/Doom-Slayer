@@ -109,6 +109,15 @@ final class KU {
                 p.lLegX = kf(u, 0, 0.2f, -0.9f, -0.7f); p.rLegX = kf(u, 0, -0.4f, 0.7f, 0.55f);
                 p.rootY += kf(u, 0, 0.5f, -2.2f, -1.6f); p.rootZ += kf(u, 0, 0.8f, -1.6f, -1.8f);
             }
+            case 4, 5 -> { // jab / cross: 4 = right fist, 5 = left fist
+                boolean r = kind == 4; float d = r ? 1 : -1;
+                float arm = r ? 1 : -1; // r uses rArm, l uses lArm
+                float ax = kf(u, -0.3f, -0.7f, -1.58f, -1.4f), az = kf(u, 0.1f, 0.35f * d, 0.05f * d, 0.1f * d);
+                if (r) { p.rArmX = ax; p.rArmZ = az; p.rArmY = kf(u, 0, 0.45f, -0.3f, -0.2f); p.lArmX = kf(u, 0, -1.2f, -1.25f, -1.1f); p.lArmZ = kf(u, 0, 0.4f, 0.35f, 0.3f); }
+                else { p.lArmX = ax; p.lArmZ = az; p.lArmY = kf(u, 0, -0.45f, 0.3f, 0.2f); p.rArmX = kf(u, 0, -1.2f, -1.25f, -1.1f); p.rArmZ = kf(u, 0, -0.4f, -0.35f, -0.3f); }
+                p.bodyY = kf(u, 0, 0.7f * d, -0.75f * d, -0.65f * d); p.headY = -0.4f * p.bodyY; p.bodyX = kf(u, 0, -0.1f, 0.3f, 0.25f);
+                p.lLegX = kf(u, 0, 0.25f, -0.7f, -0.5f); p.rLegX = kf(u, 0, -0.3f, 0.5f, 0.4f); p.rootY += kf(u, 0, -0.5f, -1.1f, -0.9f); p.rootZ += kf(u, 0, 0.5f, -1.6f, -1.8f);
+            }
             default -> { // thrust
                 p.rArmX = kf(u, -0.2f, -0.55f, -1.58f, -1.5f); p.rArmY = kf(u, 0, 0.6f * k, -0.05f, 0); p.rArmZ = kf(u, 0.1f, 0.5f, 0, 0.05f); p.rHandX = kf(u, 0.4f, 0.7f, 0.0f, 0.1f);
                 p.lArmX = kf(u, 0, -0.9f, 0.4f, 0.3f); p.lArmZ = kf(u, 0, -0.5f, 0.5f, 0.4f);
@@ -126,8 +135,9 @@ final class KU {
         return (p, t, a) -> {
             float tick = t * dur;
             for (int i = 0; i < hits.length; i++) {
-                float hs = hits[i] - 5.5f, he = hits[i] + 6f;
-                if (tick >= hs && tick <= he) { strikePose(p, (tick - hs) / (he - hs), kinds[i % kinds.length], 1f); return; }
+                float wind = Math.min(5.5f, hits[i] - (i > 0 ? hits[i - 1] + 6f : 0f)); wind = Math.max(wind, 1.5f);
+                float hs = hits[i] - wind, he = hits[i] + 6f;
+                if (tick >= hs && tick <= he) { float u = tick < hits[i] ? 0.47f * (tick - hs) / wind : 0.47f + 0.53f * (tick - hits[i]) / 6f; strikePose(p, u, kinds[i % kinds.length], 1f); return; }
             }
             stance(p, 0.7f); p.rArmX = -0.9f; p.rArmZ = 0.3f; p.lArmX = -0.8f; p.rHandX = 0.6f; // between hits: guard up, sword raised
         };
