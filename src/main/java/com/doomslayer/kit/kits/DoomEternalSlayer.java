@@ -367,7 +367,7 @@ public class DoomEternalSlayer extends SlayerKit {
                         ServerLevel l = L(e); Vec3 from = shoulder(e), look = e.getViewVector(1f); Random r = rng(e);
                         for (int i = 0; i < 10; i++) {
                             Vec3 d = look.add(r.nextGaussian() * 0.22, r.nextGaussian() * 0.12, r.nextGaussian() * 0.22).normalize();
-                            l.sendParticles(i % 3 == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.FLAME, from.x, from.y, from.z, 0, d.x, d.y, d.z, 0.35 + r.nextDouble() * 0.2);
+                            Fx.burst(l, i % 3 == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.FLAME, from.add(d.scale(0.8 + r.nextDouble() * 4.6)), 1, 0.25, 0.01);
                         }
                         if (n % 3 == 0) for (LivingEntity f : Combat.cone(e, 5.5, 32)) { f.setSecondsOnFire(7); Combat.damage(e, f, 1.5f); }
                         if (n % 5 == 0) Combat.sound(e, SoundEvents.FIRE_AMBIENT, 1.5f, 1.4f);
@@ -742,7 +742,7 @@ public class DoomEternalSlayer extends SlayerKit {
                     if (n < 22) {
                         Vec3 g = gun(e); Random r = rng(e);
                         Vec3 o = g.add(r.nextGaussian() * 0.6, r.nextGaussian() * 0.6, r.nextGaussian() * 0.6);
-                        L(e).sendParticles(ParticleTypes.ELECTRIC_SPARK, o.x, o.y, o.z, 0, g.x - o.x, g.y - o.y, g.z - o.z, 0.25);
+                        Fx.burst(L(e), ParticleTypes.ELECTRIC_SPARK, o, 1, 0.05, 0.02);
                         if (n % 5 == 0) Combat.sound(e, SoundEvents.BEACON_POWER_SELECT, 0.8f, 1.2f + n * 0.03f);
                     }
                     if (n == 24 && ok(t)) {

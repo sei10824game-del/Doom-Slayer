@@ -263,6 +263,23 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                 spin(ps, buf.getBuffer(RenderType.eyes(STAR)), r * 2.4f * (0.5f + t), mix(col, 0xffffff, 0.4f), t * 1.5f, full);
                 return true;
             }
+            case PUFF -> { // N pseudo-random sprites per entity: glow puffs / rising smoke / spark streaks, deterministic per entity id
+                Vec3 sv = p.end(); int cnt = (int) sv.y; float spread = p.radius(), spd = (float) sv.x, tt = p.tickCount + pt;
+                java.util.Random rnd = new java.util.Random(p.getId() * 131L + 7);
+                boolean smoke = s == ProjStyle.VIS_PUFF_SMOKE, spark = s == ProjStyle.VIS_PUFF_SPARK;
+                VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW)), sm = buf.getBuffer(RenderType.entityTranslucent(GLOW)), cap = buf.getBuffer(RenderType.eyes(CAPSULE));
+                for (int i = 0; i < cnt; i++) {
+                    Vec3 dir = new Vec3(rnd.nextGaussian(), rnd.nextGaussian() * (smoke ? 0.5 : 1), rnd.nextGaussian()).normalize(); float rr = rnd.nextFloat(), k = 0.6f + rnd.nextFloat() * 0.8f;
+                    double drift = Math.max(spd, 0.015) * tt * (spark ? 7 : 4) * k;
+                    Vec3 pos = dir.scale(spread * rr).add(dir.scale(drift)); if (smoke) pos = pos.add(0, 0.025 * tt, 0); if (spark) pos = pos.add(0, -0.004 * tt * tt, 0);
+                    ps.pushPose(); ps.translate(pos.x, pos.y, pos.z);
+                    if (spark) { Vec3 d = dir.add(0, -0.016 * tt, 0); oriented(cap, ps, Vec3.ZERO, d, toCam, size * 2.8 * (1 - t * 0.6), size * 0.9, 0, col, fade, full); }
+                    else if (smoke) billboard(ps, sm, size * (0.6f + 1.2f * t) * k, col, 0.5f * (1 - t) * Math.min(1, t * 6), 0, full);
+                    else { billboard(ps, add, size * (1f - 0.7f * t) * k, col, fade, 0, full); billboard(ps, add, size * 0.4f * (1f - t) * k, mix(col, 0xffffff, 0.7f), fade, 0, full); }
+                    ps.popPose();
+                }
+                return true;
+            }
             case SLASH -> { // crescent sweep: the bright head races along the arc, the tail thins out and fades
                 Vec3 se = p.end(); double yaw = Math.toRadians(se.x), tilt = Math.toRadians(p.getDeltaMovement().x); float rad = p.radius();
                 float prog = Mth.clamp((p.tickCount + pt) / (life * 0.55f), 0, 1), from = (float) se.y, to = (float) se.z, head =com.doomslayer.anim.Keys.lerp(from, to, com.doomslayer.anim.Keys.outCubic(prog));

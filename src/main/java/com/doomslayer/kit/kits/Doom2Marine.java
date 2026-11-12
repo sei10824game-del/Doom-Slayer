@@ -34,7 +34,7 @@ public class Doom2Marine extends SlayerKit {
     // ---------------- projectiles ----------------
     static final ProjStyle D2_ROCKET = ProjStyle.make().color(0xffa040).size(0.42f).life(100).explode(3.8f)
             .trail(ParticleTypes.LARGE_SMOKE)
-            .onTick(p -> ((ServerLevel) p.level()).sendParticles(ParticleTypes.FLAME, p.getX(), p.getY(), p.getZ(), 2, 0.05, 0.05, 0.05, 0.01));
+            .onTick(p -> Fx.burst((ServerLevel) p.level(), ParticleTypes.FLAME, p.position(), 2, 0.05, 0.01));
     static final ProjStyle D2_PLASMA = ProjStyle.make().color(0x3a8cff).size(0.34f).life(50).trail(ParticleTypes.ELECTRIC_SPARK)
             .onHit((p, pos, hit) -> {
                 ServerLevel l = (ServerLevel) p.level();

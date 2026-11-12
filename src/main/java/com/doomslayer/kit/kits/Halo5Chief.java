@@ -91,7 +91,7 @@ public class Halo5Chief extends SlayerKit {
         for (int s = -1; s <= 1; s += 2) {
             Vec3 q = base.add(right.scale(s));
             Fx.dustBurst(L(e), THRUST_C, 1.1f, q, n, 0.06);
-            L(e).sendParticles(ParticleTypes.CLOUD, q.x, q.y, q.z, n / 2 + 1, dir.x * 0.1, dir.y * 0.1, dir.z * 0.1, 0.05);
+            Fx.burst(L(e), ParticleTypes.CLOUD, q, n / 2 + 1, 0.1, 0.05);
         }
     }
     static CompoundTag D(SlayerEntity e) { return e.getPersistentData(); }
