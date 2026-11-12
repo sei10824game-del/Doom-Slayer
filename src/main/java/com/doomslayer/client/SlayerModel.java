@@ -74,6 +74,11 @@ public class SlayerModel extends EntityModel<SlayerEntity> {
             p.rArmX -= 0.45f * k; p.rArmZ += 0.5f * k; p.lArmX -= 0.3f * k; p.lArmZ -= 0.5f * k;
             p.lLegX += 0.3f * k; p.rLegX -= 0.25f * k; p.rootY -= 0.9f * k; p.rootZ += 1.6f * k; p.rootRoll += 0.08f * sd * k;
         }
+        if (e.reviveAnim > 0 && e.deathTime == 0) { // revival: from one knee, head bowed -> rise, arms spreading, lifted slightly off the ground
+            float t = 1 - Math.max(0, e.reviveAnim - partial) / 24f, k = 1 - Keys.smooth(Keys.win(t, .2f, .8f)), fl = Keys.bump(Keys.win(t, .3f, 1f));
+            p.rootY += -4.5f * k + 1.3f * fl; p.lLegX -= 0.9f * k; p.rLegX += 0.7f * k; p.bodyX += 0.5f * k - 0.15f * fl; p.headX += 0.5f * k - 0.4f * fl;
+            p.rArmZ += 1.1f * fl; p.lArmZ -= 1.1f * fl; p.rArmX -= 0.3f * fl; p.lArmX -= 0.3f * fl;
+        }
         if (e.deathTime > 0) { // death: buckle to the knees, drop the weapons, pitch forward onto the ground, small bounce, lie still
             float t = Math.min(1f, (e.deathTime + partial) / 20f), k1 = Keys.smooth(Keys.win(t, 0, .35f)), k2 = Keys.inQuad(Keys.win(t, .35f, .8f)), bounce = Keys.bump(Keys.win(t, .8f, 1f));
             Pose d0 = p; float keep = 1 - k1;

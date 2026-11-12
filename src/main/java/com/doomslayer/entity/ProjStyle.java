@@ -22,7 +22,7 @@ public class ProjStyle {
     public float explodeRadius = 0, explodeKb = 0.6f; public boolean bounce; public float homing;
     public ParticleOptions trail;
     public boolean glow = true, visible = true;
-    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC, BEAM, FLASH, BLAST, RING, SLASH, PUFF, SHIELD, BODYSHIELD, PLASMA, NEEDLE, BFG, FLAME, HEART }
+    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC, BEAM, FLASH, BLAST, RING, SLASH, PUFF, SHIELD, BODYSHIELD, AURA, PLASMA, NEEDLE, BFG, FLAME, HEART }
     /** static field name (set at startup by reflection); lets the renderer pick a fitting look per weapon */
     public String name = "";
     private static boolean has(String n, String... k) { for (String x : k) if (n.contains(x)) return true; return false; }
@@ -95,6 +95,7 @@ public class ProjStyle {
     public static final ProjStyle VIS_PUFF_SPARK = make().color(0xffe8a0).size(0.1f).shape(Shape.PUFF).visual();
     public static final ProjStyle VIS_SHIELD = make().color(0x80c8ff).size(0.9f).shape(Shape.SHIELD).visual();
     public static final ProjStyle VIS_BODYSHIELD = make().color(0xffd060).size(2f).shape(Shape.BODYSHIELD).visual();
+    public static final ProjStyle VIS_AURA = make().color(0x70ffa0).size(2f).shape(Shape.AURA).visual();
     public static final ProjStyle VIS_SLASH = make().color(0xffffff).size(0.5f).shape(Shape.SLASH).visual();
     public static final ProjStyle VIS_RING = make().color(0xffffff).size(2f).shape(Shape.RING).visual();
 

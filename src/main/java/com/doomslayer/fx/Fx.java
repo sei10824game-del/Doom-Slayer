@@ -73,6 +73,10 @@ public final class Fx {
     public static void bodyShield(ServerLevel l, Vec3 feet, int rgb, float height, float width) {
         com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_BODYSHIELD, feet, Vec3.ZERO, rgb, height, 8, null, width);
     }
+    /** rising hoops + spiralling motes + soft light column around a body (healing / revival) */
+    public static void aura(ServerLevel l, Vec3 feet, int rgb, float height, float width, int life) {
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_AURA, feet, Vec3.ZERO, rgb, height, life, null, width);
+    }
     /** muzzle / impact flash */
     public static void flash(ServerLevel l, Vec3 p, int rgb, float size) {
         com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_FLASH, p, Vec3.ZERO, rgb, size, 4, null);

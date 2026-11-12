@@ -58,12 +58,17 @@ public class SlayerEntity extends PathfinderMob {
     public int animTick() { return level().isClientSide ? clientAnim : serverTick; }
     public int attackTicks() { return serverTick; }
     @Nullable public LivingEntity atkTarget;
-    private int lastGuardFx = -100, lastHitFx = -100, airTicks;
+    private int lastGuardFx = -100, lastHitFx = -100, airTicks, lastHealFx = -100;
+    private float lastHp = -1, healAcc;
+    /** CLIENT: countdown of the rise-up animation after a revival */
+    public int reviveAnim;
+    @Override public void handleEntityEvent(byte id) { if (id == 70) reviveAnim = 24; else super.handleEntityEvent(id); }
 
     @Override
     public void tick() {
         super.tick();
         if (level().isClientSide) {
+            if (reviveAnim > 0) reviveAnim--;
             int a = entityData.get(ATK);
             if (a != lastAtk) { clientAnim = 0; lastAtk = a; } else if (a >= 0) clientAnim++;
             return;
@@ -71,6 +76,16 @@ public class SlayerEntity extends PathfinderMob {
         for (int i = 0; i < cds.length; i++) if (cds[i] > 0) cds[i]--;
         if (gcd > 0) gcd--;
         kit.passive(this);
+        if (level() instanceof net.minecraft.server.level.ServerLevel hl && isAlive()) { // healing visuals: any health gain (potions, gourds, medkits, regen) shows a rising aura
+            float hp = getHealth();
+            if (lastHp >= 0 && hp > lastHp) healAcc += hp - lastHp;
+            lastHp = hp;
+            if (healAcc >= 3f && tickCount - lastHealFx >= 14) {
+                boolean big = healAcc >= 12f; healAcc = 0; lastHealFx = tickCount;
+                com.doomslayer.fx.Fx.aura(hl, position(), 0x70ffa0, getBbHeight() * (big ? 1.2f : 1.05f), getBbWidth() * (big ? 1.2f : 0.95f), big ? 24 : 16);
+                if (big) { com.doomslayer.fx.Fx.ring(hl, position().add(0, 0.1, 0), 1.8f, 0x90ffb0, 1.4f, 20); com.doomslayer.fx.Fx.flash(hl, position().add(0, getBbHeight() * 0.6, 0), 0xc0ffd0, 0.8f); }
+            }
+        }
         if (level() instanceof net.minecraft.server.level.ServerLevel sl) {
             var res = getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
             if (res != null && res.getAmplifier() >= 3 && tickCount % 7 == 0) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f); // invulnerable / guard stance shimmer
@@ -151,7 +166,18 @@ public class SlayerEntity extends PathfinderMob {
 
     @Override
     public void die(DamageSource src) {
-        if (!level().isClientSide && kit.preventDeath(this)) return;
+        if (!level().isClientSide && kit.preventDeath(this)) { // revival: pillar of light, big aura, ground ring, and the rise-up pose on clients
+            if (level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                net.minecraft.world.phys.Vec3 p0 = position();
+                com.doomslayer.fx.Fx.beam(sl, p0.add(0, 14, 0), p0, 0xfff0b0, 3.2f, 0.5); com.doomslayer.fx.Fx.aura(sl, p0, 0xfff0b0, getBbHeight() * 1.25f, getBbWidth() * 1.3f, 34);
+                com.doomslayer.fx.Fx.aura(sl, p0, kit.eggSecondary, getBbHeight() * 1.1f, getBbWidth() * 0.9f, 28);
+                com.doomslayer.fx.Fx.ring(sl, p0.add(0, 0.1, 0), 3.6f, 0xfff0b0, 1.6f, 28); com.doomslayer.fx.Fx.flash(sl, p0.add(0, getBbHeight() * 0.6, 0), 0xffffff, 1.5f);
+                com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.END_ROD, p0.add(0, 1, 0), 20, 0.6, 0.05);
+                level().broadcastEntityEvent(this, (byte) 70);
+            }
+            lastHp = getHealth(); healAcc = 0;
+            return;
+        }
         super.die(src);
         if (level() instanceof net.minecraft.server.level.ServerLevel sl) { // death burst
             net.minecraft.world.phys.Vec3 c = position().add(0, getBbHeight() * 0.55, 0);

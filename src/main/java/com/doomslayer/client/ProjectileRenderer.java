@@ -304,6 +304,23 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                 sprite(buf.getBuffer(RenderType.eyes(GLOW)), ps, c, (right.lengthSqr() > 1e-4 ? right : new Vec3(1, 0, 0)).scale(w * 1.6f), new Vec3(0, h * 1.3f, 0), toCam, col, 0.25f * fade, full);
                 return true;
             }
+            case AURA -> { // healing / revival: hoops climbing the body, motes on a helix, soft column of light
+                float h = size, w = p.radius(), tt = p.tickCount + pt, in = Math.min(1, t * 5);
+                VertexConsumer ring = buf.getBuffer(RenderType.eyes(RING)), glow = buf.getBuffer(RenderType.eyes(GLOW)), star = buf.getBuffer(RenderType.eyes(STAR));
+                for (int k = 0; k < 3; k++) {
+                    float fr = (t * 1.6f + k / 3f) % 1f, rr = w * (1.15f - 0.35f * fr), al = (float) Math.sin(fr * Math.PI) * fade * in;
+                    sprite(ring, ps, new Vec3(0, h * fr, 0), new Vec3(rr, 0, 0), new Vec3(0, 0, rr), toCam, col, 0.8f * al, full);
+                }
+                for (int i = 0; i < 12; i++) {
+                    float fr = (i / 12f + t * 1.3f) % 1f; double ang = i * 0.9 + tt * 0.22; float al = (float) Math.sin(fr * Math.PI) * fade * in;
+                    ps.pushPose(); ps.translate(Math.cos(ang) * w * 0.95, h * fr, Math.sin(ang) * w * 0.95);
+                    billboard(ps, glow, 0.16f * (1 + 0.5f * (i % 3)), i % 2 == 0 ? col : hot, al, 0, full);
+                    if (i % 4 == 0) spin(ps, star, 0.3f, hot, tt * 0.3f + i, full);
+                    ps.popPose();
+                }
+                Vec3 right = toCam.cross(new Vec3(0, 1, 0)); if (right.lengthSqr() > 1e-4) { right = right.normalize(); sprite(glow, ps, new Vec3(0, h * 0.55f, 0), right.scale(w * 1.5f), new Vec3(0, h * 0.8f, 0), toCam, col, 0.28f * fade * in, full); }
+                return true;
+            }
             case SLASH -> { // crescent sweep: the bright head races along the arc, the tail thins out and fades
                 Vec3 se = p.end(); double yaw = Math.toRadians(se.x), tilt = Math.toRadians(p.getDeltaMovement().x); float rad = p.radius();
                 float prog = Mth.clamp((p.tickCount + pt) / (life * 0.55f), 0, 1), from = (float) se.y, to = (float) se.z, head =com.doomslayer.anim.Keys.lerp(from, to, com.doomslayer.anim.Keys.outCubic(prog));
