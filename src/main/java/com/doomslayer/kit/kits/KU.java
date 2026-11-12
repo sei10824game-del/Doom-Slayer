@@ -142,4 +142,29 @@ final class KU {
             stance(p, 0.7f); p.rArmX = -0.9f; p.rArmZ = 0.3f; p.lArmX = -0.8f; p.rHandX = 0.6f; // between hits: guard up, sword raised
         };
     }
+
+    /** gun animation: raise -> hold -> per-shot recoil (+ muzzle climb) -> lower. style 0 auto, 1 pistol, 2 launcher, 3 precision, 4 shotgun */
+    static com.doomslayer.anim.Anim gunAnim(int[] shots, int dur, int style, boolean sustained) {
+        final float[] S = {0.75f, 1.5f, 2.6f, 1.9f, 2.3f};
+        return (p, t, a) -> {
+            float tick = t * dur; int first = shots[0], last = shots[shots.length - 1];
+            float k = smooth(win(tick, 0, Math.max(3, first - 2))) * (1 - smooth(win(tick, last + 5, Math.max(last + 6, dur))));
+            float r = 0, climb = 0;
+            if (sustained) { float on = win(tick, first, first + 2) * (1 - win(tick, last, last + 2)); r = 0.4f * on * (1 + 0.3f * (float) Math.sin(tick * 3.1f)); climb = 0.1f * on; }
+            else {
+                int passed = 0;
+                for (int sh : shots) { float x = tick - sh; if (x < 0) continue; passed++; r += x < 1 ? x : (float) Math.exp(-(x - 1) / 2.4); }
+                climb = Math.min(0.25f, passed * 0.025f) * (1 - win(tick, last + 1, last + 9));
+            }
+            r *= S[style];
+            float after = bump(win(tick, last + 3, last + 11)) * k;
+            switch (style) {
+                case 1 -> { pistol2(p, k, climb * 1.5f, r); stance(p, k); }
+                case 2 -> { shoulder(p, k, 0.2f + climb, r); stance(p, k); p.lLegZ -= 0.25f * k; p.rLegZ += 0.25f * k; p.rootY -= 0.8f * k; p.lArmX += 0.45f * after; }
+                case 3 -> { shoulder(p, k, 0.03f + climb * 0.3f, r); stance(p, k); p.headZ += 0.16f * k; p.bodyX += 0.1f * k; p.rArmZ += 0.18f * after; p.rHandZ += 0.6f * after; }
+                case 4 -> { shoulder(p, k, 0.04f + climb, r); stance(p, k); p.lArmX += 0.4f * after; p.rootZ += 0.8f * r * 0.3f; }
+                default -> { shoulder(p, k, climb, r); stance(p, k); if (r > 0.1f) p.bodyZ += 0.02f * (float) Math.sin(tick * 6f) * k; }
+            }
+        };
+    }
 }

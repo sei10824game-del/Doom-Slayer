@@ -124,7 +124,7 @@ public abstract class ZeldaKits extends SlayerKit {
     protected void defineAttacks(List<AttackDef> out) { for (String id : atk) out.add(build(id)); }
 
     // ---------- anim kinds ----------
-    enum K { SLASH, COMBO, STAB, OVER, SPIN, CAST, BOW, THROW, SLAM, JUMP, DASH, GUARD }
+    enum K { SLASH, COMBO, STAB, OVER, SPIN, CAST, BOW, BOW_OLD, THROW, SLAM, JUMP, DASH, GUARD }
     static Anim anim(K k, float h, int n) {
         return (p, t, a) -> {
             switch (k) {
@@ -135,7 +135,12 @@ public abstract class ZeldaKits extends SlayerKit {
                     p.bodyX = track(t, 0, 0, h * .6f, -0.3f, h, 0.6f, 1, 0); p.rootY = track(t, 0, 0, h * .6f, 0.4f, h, -1.5f, 1, 0); p.rootZ = -1.8f * bump(win(t, h * .5f, h + .3f)); }
                 case SPIN -> { p.rootYaw += 6.28f * win(t, .15f, .8f); p.rArmZ = 1.5f * bump(win(t, .1f, .85f)); p.rArmX = -0.3f; p.lArmZ = -1.1f * bump(win(t, .1f, .85f)); p.rootY -= 0.6f * bump(win(t, .1f, .85f)); }
                 case CAST -> { float c = ready(t, .3f, .85f); p.rArmX = lerp(p.rArmX, -1.7f, c); p.lArmX = lerp(p.lArmX, -1.7f, c); p.headX -= 0.2f * c; p.rootZ += 1.2f * kick(t, h, .3f); }
-                case BOW -> { float c = ready(t, .15f, .88f); shoulder(p, c, 0, 1.3f * kick(t, h, .25f)); stance(p, c); p.lArmX -= 0.1f * c; }
+                case BOW -> { // draw the bow: left arm out holding the riser, right hand pulls the string to the cheek, release + recoil, nock again
+                    float draw = win(t, .1f, h) * (1 - win(t, h, h + .03f)), c = ready(t, .12f, .9f), rel = kick(t, h, .18f);
+                    p.lArmX = lerp(p.lArmX, -1.55f, c); p.lArmY = lerp(p.lArmY, 0.1f, c); p.rArmX = lerp(p.rArmX, -1.5f + 0.15f * draw, c); p.rArmY = lerp(p.rArmY, -0.5f * draw - 0.2f, c); p.rArmZ = lerp(p.rArmZ, 0.2f + 0.8f * draw * 0, c);
+                    p.rHandX = 0.2f * draw; p.bodyY += (0.45f + 0.15f * draw) * c; p.headY -= 0.45f * c; p.bodyX += 0.05f * c - 0.1f * rel; p.rootZ += 0.5f * rel; stance(p, c); p.rLegX += 0.1f * draw;
+                }
+                case BOW_OLD -> { float c = ready(t, .15f, .88f); shoulder(p, c, 0, 1.3f * kick(t, h, .25f)); stance(p, c); p.lArmX -= 0.1f * c; }
                 case THROW -> throwAnim(p, t);
                 case SLAM -> { p.rArmX = track(t, 0, -0.2f, h * .6f, -2.9f, h, -0.4f, 1, -0.2f); p.lArmX = track(t, 0, 0, h * .6f, -2.9f, h, -0.4f, 1, 0); p.bodyX = track(t, 0, 0, h * .6f, -0.4f, h, 0.8f, 1, 0); p.rootY = track(t, 0, 0, h * .6f, 0.5f, h, -2f, 1, 0); }
                 case JUMP -> { float up = win(t, .08f, .3f) * (1 - win(t, .38f, .5f)), dn = bump(win(t, .4f, .75f)); p.rArmX = lerp(p.rArmX, -3.0f, up) + 2.2f * dn; p.lLegX = -0.8f * up; p.rLegX = 0.5f * up; p.rootY += 1.6f * up; p.bodyX += 0.6f * dn; }

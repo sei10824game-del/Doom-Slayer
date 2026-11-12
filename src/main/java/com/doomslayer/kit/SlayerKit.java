@@ -35,6 +35,7 @@ public abstract class SlayerKit {
             attacks = new ArrayList<>();
             defineAttacks(attacks);
             com.doomslayer.kit.kits.MeleeFix.apply(this, attacks);
+            com.doomslayer.kit.kits.RangedFix.apply(this, attacks);
             for (int i = 0; i < attacks.size(); i++) attacks.get(i).index = i;
         }
         return attacks;
