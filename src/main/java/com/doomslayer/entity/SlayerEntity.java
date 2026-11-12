@@ -81,6 +81,7 @@ public class SlayerEntity extends PathfinderMob {
             }
             if (!d.canMove) getNavigation().stop();
             d.tick.run(this, t, serverTick);
+            com.doomslayer.kit.kits.MeleeFix.trail(this, d, serverTick);
             if (++serverTick >= d.duration) endAttack(d, t);
         }
     }

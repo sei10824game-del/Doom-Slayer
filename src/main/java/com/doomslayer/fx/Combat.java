@@ -3,6 +3,7 @@ package com.doomslayer.fx;
 import com.doomslayer.DoomSlayerMod;
 import com.doomslayer.entity.ProjStyle;
 import com.doomslayer.entity.SlayerEntity;
+import com.doomslayer.kit.AttackDef;
 import com.doomslayer.entity.SlayerProjectile;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +37,11 @@ public final class Combat {
     public static boolean damage(SlayerEntity s, LivingEntity t, float amount) {
         if (!isFoe(s, t)) return false;
         t.invulnerableTime = 0;
+        AttackDef cur = s.currentAttack();
+        if (cur != null && cur.maxRange <= 4.5f && s.level() instanceof ServerLevel l) { // melee impact: starburst + spark streaks
+            Vec3 m = t.position().add(0, t.getBbHeight() * 0.6, 0);
+            Fx.flash(l, m, 0xfff0c0, 0.55f); Fx.burst(l, ParticleTypes.CRIT, m, 8, 0.15, 0.3);
+        }
         return t.hurt(s.damageSources().mobAttack(s), amount * s.kit.dmgMult);
     }
     public static void knock(Entity t, Vec3 from, double strength, double up) {

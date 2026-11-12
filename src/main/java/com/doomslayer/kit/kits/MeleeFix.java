@@ -48,4 +48,26 @@ public final class MeleeFix {
             if (v != null) a.anim = KU.comboAnim((int[]) v[2], (Integer) v[0], (int[]) v[1]);
         }
     }
+
+    /** Weapon trail / fist streak at the strike frame of every melee attack in the table (custom-rendered). Call each server tick of the attack. */
+    public static void trail(com.doomslayer.entity.SlayerEntity e, AttackDef d, int tick) {
+        Object[] v = T.get(e.kit.getClass().getSimpleName() + "." + d.id);
+        if (v == null) return;
+        int[] hits = (int[]) v[2], kinds = (int[]) v[1];
+        for (int i = 0; i < hits.length; i++) {
+            if (tick != hits[i] - 2) continue;
+            int kind = kinds[i % kinds.length]; var l = (net.minecraft.server.level.ServerLevel) e.level();
+            String id = d.id; int col = id.contains("stunstick") || id.contains("energy_sword") ? 0x70c8ff : id.contains("hammer") || id.contains("mace") || id.contains("axe") ? 0xffa040 : 0xeef0f8;
+            net.minecraft.world.phys.Vec3 c = e.position().add(0, 1.3, 0), look = e.getViewVector(1f), side = new net.minecraft.world.phys.Vec3(-look.z, 0, look.x);
+            float yaw = e.getYRot();
+            switch (kind) {
+                case 0 -> com.doomslayer.fx.Fx.arc(l, c, yaw, 1.9f, 80, -70, 12, col, 0.9f, 12);
+                case 1 -> com.doomslayer.fx.Fx.arc(l, c, yaw, 1.9f, -70, 80, -10, col, 0.9f, 12);
+                case 2 -> com.doomslayer.fx.Fx.arc(l, c.add(look.scale(0.2)), yaw, 2.1f, -75, 25, 90, col, 1f, 12);
+                case 3 -> { com.doomslayer.fx.Fx.beam(l, c.add(look.scale(0.6)), c.add(look.scale(3.2)), col, 0.9f, 0.3); com.doomslayer.fx.Fx.flash(l, c.add(look.scale(3.0)), col, 0.45f); }
+                default -> { double sd = kind == 4 ? -0.4 : 0.4; net.minecraft.world.phys.Vec3 a = c.add(side.scale(sd * 0.6)).add(look.scale(0.5)), b = c.add(side.scale(sd * 0.3)).add(look.scale(2.3));
+                    com.doomslayer.fx.Fx.beam(l, a, b, col, 0.8f, 0.3); com.doomslayer.fx.Fx.flash(l, b, col, 0.4f); }
+            }
+        }
+    }
 }
