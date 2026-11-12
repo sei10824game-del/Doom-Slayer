@@ -66,6 +66,11 @@ public class Omori extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("final_strike")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 20 / 34f), 2, 1.2f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         out.add(AttackDef.of("attack").range(0, 3f).cd(14).weight(3).dur(14).weapon("knife")
                 .tick((e, t, n) -> {
                     if (n == 3) snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.8f, 1.5f);

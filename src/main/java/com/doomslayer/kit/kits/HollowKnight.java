@@ -50,6 +50,12 @@ public class HollowKnight extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("great_slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 16 / 30f), 0, 1.2f);
+        for (AttackDef a : out) if (a.id.equals("nail_slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 4 / 12f), 0, 1f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         defineAll(out); gateSpells(out);
     }
 

@@ -96,6 +96,11 @@ public abstract class BlasphemousKits extends SlayerKit {
 
         @Override
         protected void defineAttacks(List<AttackDef> out) {
+            defineBase(out);
+            for (AttackDef a : out) if (a.id.equals("mea_culpa_combo")) a.anim = (p, t, aa) -> KU.strikePose(p, KU.remap(t, 6 / 18f), 0, 1.2f);
+        }
+
+        private void defineBase(List<AttackDef> out) {
             out.add(AttackDef.of("mea_culpa_combo").range(0, 3.4f).cd(16).weight(3).dur(18).weapon("mea_culpa")
                     .tick((e, t, n) -> { if (n == 6) { slash(e, 80, -70, 15, BLOOD); melee(e, 3.5, 8, 0.6, 0.1, BLOOD); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.9f); } })
                     .anim((p, t, a) -> swing(p, t, 6 / 18f, 1.2f)));
@@ -142,6 +147,14 @@ public abstract class BlasphemousKits extends SlayerKit {
 
         @Override
         protected void defineAttacks(List<AttackDef> out) {
+            defineBase(out);
+            for (AttackDef a : out) {
+                if (a.id.equals("ruego_combo")) a.anim = (p, t, aa) -> KU.strikePose(p, KU.remap(t, 5 / 16f), 0, 1f);
+                if (a.id.equals("veredicto_slam")) a.anim = (p, t, aa) -> KU.strikePose(p, KU.remap(t, 20 / 36f), 2, 1.2f);
+            }
+        }
+
+        private void defineBase(List<AttackDef> out) {
             // Ruego al Alba: sword
             out.add(AttackDef.of("ruego_combo").range(0, 3.3f).cd(14).weight(3).dur(16).weapon("ruego")
                     .tick((e, t, n) -> { if (n == 5) { slash(e, 75, -65, 10, HOLY); melee(e, 3.4, 7, 0.5, 0.1, HOLY); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.3f); } })

@@ -51,6 +51,12 @@ public class Hornet extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("cross_stitch")) a.anim = KU.comboAnim(new int[] {8, 13}, 26, new int[] {0, 1});
+        for (AttackDef a : out) if (a.id.equals("needle_slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 4 / 12f), 0, 1f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         defineAll(out);
         java.util.Map<String, Integer> cost = java.util.Map.of("silkspear", 4, "sharpdart", 4, "thread_storm", 6, "cross_stitch", 5, "rune_rage", 6);
         for (AttackDef a : out) { Integer c = cost.get(a.id); if (c != null) { a.when((e, t) -> silk(e) >= c); a.onStart((e, t, n) -> silk(e, -c)); } }

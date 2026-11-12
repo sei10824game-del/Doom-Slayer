@@ -64,6 +64,13 @@ public class Chara extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("flurry")) a.anim = KU.comboAnim(new int[] {4, 10, 16, 22}, 30, new int[] {0, 1, 0, 1});
+        for (AttackDef a : out) if (a.id.equals("slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 5 / 14f), 0, 1f);
+        for (AttackDef a : out) if (a.id.equals("crescent")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 8 / 24f), 0, 1.2f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         out.add(AttackDef.of("slash").range(0, 3f).cd(12).weight(3).dur(14).weapon("real_knife")
                 .tick((e, t, n) -> {
                     if (n == 3) snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.6f);

@@ -51,6 +51,11 @@ public class ZeroKatana extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 4 / 12f), 0, 1f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         out.add(AttackDef.of("slash").range(0, 3.2f).cd(12).weight(3).dur(12).weapon("katana")
                 .tick((e, t, n) -> {
                     if (n == 2) Combat.lunge(e, 0.5, 0);

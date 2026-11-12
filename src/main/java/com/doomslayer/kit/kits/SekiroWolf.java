@@ -111,6 +111,15 @@ public class SekiroWolf extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("combo_chain")) a.anim = KU.comboAnim(new int[] {5, 16, 27}, 36, new int[] {0, 1, 2});
+        for (AttackDef a : out) if (a.id.equals("ichimonji")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 14 / 28f), 0, 1.2f);
+        for (AttackDef a : out) if (a.id.equals("ashina_cross")) a.anim = KU.comboAnim(new int[] {8, 14}, 30, new int[] {0, 1});
+        for (AttackDef a : out) if (a.id.equals("sabimaru")) a.anim = KU.comboAnim(new int[] {5, 12}, 22, new int[] {0, 1});
+        for (AttackDef a : out) if (a.id.equals("kusabimaru")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 5 / 14f), 0, 1f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         out.add(AttackDef.of("kusabimaru").range(0, 3.2f).cd(12).weight(3).dur(14).weapon("kusabimaru")
                 .tick((e, t, n) -> {
                     if (n == 5) { slash(e, 70, -60, 10, 0xffffff); melee(e, 3.3, 7, 0.4, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.4f); }

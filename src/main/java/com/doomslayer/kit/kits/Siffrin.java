@@ -55,6 +55,11 @@ public class Siffrin extends SlayerKit {
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
+        defineBase(out);
+        for (AttackDef a : out) if (a.id.equals("knife_slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 5 / 14f), 0, 1f);
+    }
+
+    private void defineBase(List<AttackDef> out) {
         out.add(AttackDef.of("knife_slash").range(0, 3f).cd(12).weight(3).dur(14).weapon("knife")
                 .tick((e, t, n) -> { if (n == 5) { slash(e, 65, -55, 10, 0xffffff); melee(e, 3.1, 6, 0.4, 0.1, STAR); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.5f); } })
                 .anim((p, t, a) -> swing(p, t, 5 / 14f, 1f)));
