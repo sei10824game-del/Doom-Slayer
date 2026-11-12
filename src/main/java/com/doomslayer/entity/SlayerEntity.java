@@ -62,13 +62,48 @@ public class SlayerEntity extends PathfinderMob {
     private float lastHp = -1, healAcc;
     /** CLIENT: countdown of the rise-up animation after a revival */
     public int reviveAnim;
-    @Override public void handleEntityEvent(byte id) { if (id == 70) reviveAnim = 24; else super.handleEntityEvent(id); }
+    /** CLIENT: emote playback (0 victory, 1 taunt) */
+    public int emoteAnim, emoteDur = 1, emoteKind;
+    private int emoteCd, emoteTicks, deadWait; @Nullable private LivingEntity prevTarget;
+    /** body-language family used for taunts and victory poses: 0 brute, 1 soldier, 2 sword hero, 3 shinobi, 4 kid */
+    public static int emoteStyle(SlayerKit k) {
+        String n = k.getClass().getSimpleName();
+        if (n.startsWith("Doom") || n.startsWith("Brutal") || n.startsWith("DarkAges")) return 0;
+        if (n.startsWith("Halo") || n.startsWith("HalfLife") || n.startsWith("Entropy") || n.startsWith("Ds") || n.startsWith("DeadSpace")) return 1;
+        if (n.equals("SekiroWolf") || n.equals("ZeroKatana")) return 3;
+        if (n.equals("Chara") || n.equals("Omori") || n.equals("Siffrin")) return 4;
+        return 2;
+    }
+    private void emote(int kind) {
+        if (!(level() instanceof net.minecraft.server.level.ServerLevel sl)) return;
+        int st = emoteStyle(kit); emoteCd = kind == 0 ? 200 : 500; emoteTicks = kind == 0 ? 44 : 26; getNavigation().stop();
+        level().broadcastEntityEvent(this, (byte) (71 + kind));
+        net.minecraft.world.phys.Vec3 p0 = position();
+        if (kind == 0) { // victory: aura in the kit colour, sparkle over the raised weapon / fists
+            com.doomslayer.fx.Fx.aura(sl, p0, kit.eggSecondary, getBbHeight() * 1.05f, getBbWidth(), 30);
+            com.doomslayer.fx.Fx.flash(sl, p0.add(0, getBbHeight() + 0.9, 0), st == 2 ? 0xfff0a0 : kit.eggSecondary, st == 2 ? 1.1f : 0.7f);
+            com.doomslayer.fx.Fx.ring(sl, p0.add(0, 0.1, 0), 1.8f, kit.eggSecondary, 1.3f, 20);
+            var snd = st == 0 ? net.minecraft.sounds.SoundEvents.RAVAGER_ROAR : st == 2 ? net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP : st == 4 ? net.minecraft.sounds.SoundEvents.AMETHYST_BLOCK_CHIME : net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_IRON;
+            com.doomslayer.fx.Fx.sound(sl, p0, snd, st == 0 ? 0.5f : 0.7f, st == 0 ? 1.3f : 1.2f);
+        } else { // taunt: stamp ring + glint
+            com.doomslayer.fx.Fx.ring(sl, p0.add(0, 0.1, 0), 1.3f, kit.eggSecondary, 1.2f, 16);
+            com.doomslayer.fx.Fx.flash(sl, p0.add(0, getBbHeight() * 0.8, 0).add(getViewVector(1f).scale(0.8)), kit.eggSecondary, 0.5f);
+            com.doomslayer.fx.Fx.sound(sl, p0, st == 0 ? net.minecraft.sounds.SoundEvents.RAVAGER_ROAR : net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_CHAIN, 0.4f, st == 0 ? 1.6f : 1.4f);
+        }
+    }
+    @Override public void handleEntityEvent(byte id) {
+        if (id == 70) reviveAnim = 24;
+        else if (id == 71) { emoteKind = 0; emoteDur = 44; emoteAnim = 44; }
+        else if (id == 72) { emoteKind = 1; emoteDur = 26; emoteAnim = 26; }
+        else super.handleEntityEvent(id);
+    }
 
     @Override
     public void tick() {
         super.tick();
         if (level().isClientSide) {
             if (reviveAnim > 0) reviveAnim--;
+            if (emoteAnim > 0) emoteAnim--;
             int a = entityData.get(ATK);
             if (a != lastAtk) { clientAnim = 0; lastAtk = a; } else if (a >= 0) clientAnim++;
             return;
@@ -76,6 +111,18 @@ public class SlayerEntity extends PathfinderMob {
         for (int i = 0; i < cds.length; i++) if (cds[i] > 0) cds[i]--;
         if (gcd > 0) gcd--;
         kit.passive(this);
+        if (emoteCd > 0) emoteCd--;
+        if (emoteTicks > 0) emoteTicks--;
+        LivingEntity ct = getTarget();
+        boolean prevDead = prevTarget != null && !prevTarget.isAlive();
+        if (prevDead) { // our target just died: strike a victory pose once the fight is really over (30-tick window)
+            if (isAlive() && !isAttacking() && emoteCd == 0 && (ct == null || !ct.isAlive())
+                    && level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(12), x -> isHostile(this, x)).isEmpty()) { emote(0); prevTarget = null; }
+            else if (++deadWait > 30 || (ct != null && ct.isAlive())) prevTarget = null;
+        } else {
+            if (prevTarget == null && ct != null && ct.isAlive() && isAlive() && !isAttacking() && emoteCd == 0 && distanceTo(ct) > 5 && random.nextFloat() < 0.5f) emote(1); // fight starting: taunt
+            if (ct != null) { prevTarget = ct; deadWait = 0; } else if (prevTarget != null && prevTarget.isAlive()) prevTarget = null;
+        }
         if (level() instanceof net.minecraft.server.level.ServerLevel hl && isAlive()) { // healing visuals: any health gain (potions, gourds, medkits, regen) shows a rising aura
             float hp = getHealth();
             if (lastHp >= 0 && hp > lastHp) healAcc += hp - lastHp;
@@ -303,6 +350,7 @@ public class SlayerEntity extends PathfinderMob {
         @Override public boolean canUse() { LivingEntity t = getTarget(); return t != null && t.isAlive(); }
         @Override public boolean canContinueToUse() { return canUse(); }
         @Override public void tick() {
+            if (emoteTicks > 0) { getNavigation().stop(); LivingEntity et = getTarget(); if (et != null) getLookControl().setLookAt(et, 30, 30); return; }
             if (tickCount % 10 == 0) retarget();
             LivingEntity t = getTarget(); if (t == null) return;
             if (!isAttacking()) {
