@@ -33,15 +33,34 @@ public class SlayerModel extends EntityModel<SlayerEntity> {
     @Override
     public void setupAnim(SlayerEntity e, float limbSwing, float limbAmt, float age, float yawHead, float pitch) {
         Pose p = new Pose();
-        float sw = limbSwing * 0.6662f, a = Math.min(1f, limbAmt * 1.3f);
-        p.rLegX = Keys.lerp(0, (float) Math.cos(sw) * 1.4f, a); p.lLegX = Keys.lerp(0, (float) Math.cos(sw + Keys.PI) * 1.4f, a);
-        p.rArmX = (float) Math.cos(sw + Keys.PI) * 0.9f * a; p.lArmX = (float) Math.cos(sw) * 0.9f * a;
-        p.rArmZ = 0.05f + (float) Math.sin(age * 0.067f) * 0.04f; p.lArmZ = -0.05f - (float) Math.sin(age * 0.067f) * 0.04f;
-        p.bodyX = 0.06f * a + (float) Math.sin(age * 0.09f) * 0.015f;
-        p.rootY = Math.abs((float) Math.cos(sw)) * 0.35f * a;
-        p.headY = yawHead * Keys.DEG; p.headX = pitch * Keys.DEG;
+        // ---- locomotion: stride, counter-swinging arms, torso twist, hip sway, forward lean that grows into a run ----
+        float sw = limbSwing * 0.6662f, a = Math.min(1f, limbAmt * 1.3f), run = Keys.clamp01((limbAmt - 0.55f) / 0.45f), still = 1 - a;
+        float c = (float) Math.cos(sw), sn = (float) Math.sin(sw), stride = 1.1f + 0.5f * run;
+        p.rLegX = c * stride * a; p.lLegX = -c * stride * a;
+        p.rLegZ = 0.03f * a; p.lLegZ = -0.03f * a;
+        p.rArmX = -c * (0.75f + 0.55f * run) * a; p.lArmX = c * (0.75f + 0.55f * run) * a;
+        p.rHandX = -(0.25f + 0.5f * run) * a; p.lHandX = -(0.25f + 0.5f * run) * a; // bent elbows while moving
+        p.bodyY = -c * 0.13f * a * (1 + run); p.bodyZ = -sn * 0.03f * a;
+        p.bodyX = (0.08f + 0.24f * run) * a;
+        p.rootY = Math.abs(sn) * (0.45f + 0.4f * run) * a; p.rootRoll = sn * 0.035f * a;
+        // ---- idle: breathing, slow weight shift from foot to foot, the head drifts and occasionally glances aside ----
+        float ph = e.getId() * 1.7f, breath = (float) Math.sin(age * 0.09f + ph), sway = (float) Math.sin(age * 0.025f + ph);
+        float glance = Keys.bump(Keys.win((age + ph * 40) % 220f, 150f, 200f)) * (((int) ((age + ph * 40) / 220f) & 1) == 0 ? 1 : -1);
+        p.bodyX += breath * 0.02f + 0.02f * still; p.rootY += breath * 0.07f * still;
+        p.rArmZ = 0.06f + breath * 0.035f; p.lArmZ = -0.06f - breath * 0.035f;
+        p.rootRoll += sway * 0.03f * still; p.bodyZ -= sway * 0.025f * still; p.rLegZ += (0.05f + sway * 0.03f) * still; p.lLegZ -= (0.05f - sway * 0.03f) * still;
+        // ---- airborne: tuck on the way up, spread and brace on the way down ----
+        float vy = (float) (e.getY() - e.yo), air = e.onGround() ? 0 : Keys.clamp01(Math.abs(vy) * 5f);
+        if (air > 0 && e.currentAttack() == null) {
+            boolean up = vy > 0;
+            p.lLegX = Keys.lerp(p.lLegX, up ? -0.7f : -0.25f, air); p.rLegX = Keys.lerp(p.rLegX, up ? 0.45f : 0.3f, air);
+            p.rArmX = Keys.lerp(p.rArmX, up ? -0.5f : -0.9f, air); p.lArmX = Keys.lerp(p.lArmX, up ? -0.4f : -0.9f, air);
+            p.rArmZ += (up ? 0.35f : 0.8f) * air; p.lArmZ -= (up ? 0.35f : 0.8f) * air; p.bodyX += (up ? 0.12f : -0.1f) * air;
+        }
+        p.headY = yawHead * Keys.DEG + (c * 0.1f * a * (1 + run)) + glance * 0.3f * still; p.headX = pitch * Keys.DEG - 0.1f * run * a + breath * 0.012f;
         p.weaponR = kit.idleWeaponR; p.weaponL = kit.idleWeaponL;
         kit.idle(p, e, age, a);
+        p.rArmX += breath * 0.025f * still; p.lArmX += breath * 0.02f * still; p.rArmZ += breath * 0.02f * still; p.lArmZ -= breath * 0.02f * still; // keep breathing through kit stances
         AttackDef d = e.currentAttack();
         if (d != null && e.deathTime == 0) {
             float t = Math.min(1f, (e.animTick() + partial) / Math.max(1, d.duration));

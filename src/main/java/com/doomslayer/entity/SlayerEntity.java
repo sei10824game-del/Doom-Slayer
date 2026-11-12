@@ -58,7 +58,7 @@ public class SlayerEntity extends PathfinderMob {
     public int animTick() { return level().isClientSide ? clientAnim : serverTick; }
     public int attackTicks() { return serverTick; }
     @Nullable public LivingEntity atkTarget;
-    private int lastGuardFx = -100, lastHitFx = -100;
+    private int lastGuardFx = -100, lastHitFx = -100, airTicks;
 
     @Override
     public void tick() {
@@ -75,6 +75,14 @@ public class SlayerEntity extends PathfinderMob {
             var res = getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
             if (res != null && res.getAmplifier() >= 3 && tickCount % 7 == 0) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f); // invulnerable / guard stance shimmer
             double sp = getDeltaMovement().horizontalDistance();
+            if (onGround()) {
+                if (airTicks > 8) { // landing thud
+                    com.doomslayer.fx.Fx.ring(sl, position().add(0, 0.05, 0), 1.2f * kit.scale, 0xd8d0c0, 1.2f, 16);
+                    com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.CLOUD, position().add(0, 0.1, 0), 6, 0.35, 0.02);
+                }
+                airTicks = 0;
+                if (sp > 0.1 && sp <= 0.55 && tickCount % 7 == 0) com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.CLOUD, position().add(0, 0.08, 0), 1, 0.08, 0.005); // footstep dust
+            } else airTicks++;
             if (sp > 0.55 && tickCount % 2 == 0) com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.CLOUD, position().add(0, 0.15, 0), 2, 0.15, 0.01); // dash / dodge dust
         }
         AttackDef d = currentAttack();
