@@ -27,7 +27,7 @@ import org.joml.Matrix4f;
  * darts, missiles with exhaust flame, spinning grenades and saw discs, plus a tapering ribbon trail. All textures are generated procedurally.
  */
 public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
-    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING;
+    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING, CRYSTAL, HEART_T;
     public ProjectileRenderer(EntityRendererProvider.Context c) { super(c); }
 
     // ---------- procedural textures ----------
@@ -83,6 +83,14 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             if (x >= 13 && x <= 18 && y >= 3 && y <= 7) return gray(255, 120); // fuse top
             if (x >= 18 && x <= 25 && y >= 4 && y <= 6) return gray(255, 170); // lever
             return 0;
+        });
+        CRYSTAL = tex("crystal", 64, 16, (x, y) -> { // double-pointed shard
+            float dx = (x + .5f - 32) / 32f, dy = Math.abs(y + .5f - 8) / 8f; float edge = 1 - Math.abs(dx) * 0.95f;
+            if (dy > edge) return 0; int v = 255 - (int) (dy / Math.max(edge, 0.05f) * 120); return gray(255, v);
+        });
+        HEART_T = tex("heart", 32, 32, (x, y) -> {
+            float dx = (x - 15.5f) / 11f, dy = -(y - 17f) / 11f; float v = (dx * dx + dy * dy - 1); boolean in = v * v * v - dx * dx * dy * dy * dy <= 0;
+            return in ? gray(255, 255 - (int) ((y - 6) * 4)) : 0;
         });
         RING = tex("ring", 64, 64, (x, y) -> {
             float d = (float) Math.hypot(x - 31.5f, y - 31.5f) / 32f; float a = (float) Math.exp(-Math.pow((d - 0.82f) * 11f, 2)) * (1 - sstep(0.9f, 1f, d));
@@ -143,6 +151,47 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                 oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 4.5, sz * 1.6, 0, col, 0.85f, full);
                 oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 3.2, sz * 0.7, 0, hot, 1f, full);
                 billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), sz * 1.3f, col, 0.7f, 0, full);
+            }
+            case PLASMA -> { // fat glowing bolt: halo, teardrop body, white-hot core, crackling orbiting sparks
+                VertexConsumer cap = buf.getBuffer(RenderType.eyes(CAPSULE));
+                oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 4.0, sz * 2.2, -sz * 0.6, col, 0.55f, full);
+                oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 3.0, sz * 1.3, 0, mix(col, 0xffffff, 0.35f), 0.95f, full);
+                oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 1.8, sz * 0.55, sz * 0.5, 0xffffff, 1f, full);
+                billboard(ps, add, sz * 2.4f, col, 0.45f, 0, full);
+                Vec3 d = vel.normalize(), a1 = d.cross(new Vec3(0, 1, 0)); if (a1.lengthSqr() < 1e-4) a1 = new Vec3(1, 0, 0); a1 = a1.normalize(); Vec3 a2 = d.cross(a1);
+                for (int i = 0; i < 3; i++) { double ang = t * 0.9 + i * 2.094, rad = sz * 1.3; Vec3 o = a1.scale(Math.cos(ang) * rad).add(a2.scale(Math.sin(ang) * rad)).add(d.scale(-sz * (i - 1) * 1.1)); ps.pushPose(); ps.translate(o.x, o.y, o.z); billboard(ps, add, sz * 0.5f, hot, 0.9f, 0, full); ps.popPose(); }
+            }
+            case NEEDLE -> { // glowing crystal shard
+                oriented(buf.getBuffer(RenderType.eyes(CAPSULE)), ps, Vec3.ZERO, vel, toCam, sz * 4.0, sz * 1.6, -sz * 0.5, col, 0.5f, full);
+                oriented(buf.getBuffer(RenderType.eyes(CRYSTAL)), ps, Vec3.ZERO, vel, toCam, sz * 3.4, sz * 1.1, 0, mix(col, 0xffffff, 0.5f), 1f, full);
+                billboard(ps, add, sz * 1.5f, col, 0.5f, 0, full);
+            }
+            case BFG -> { // huge green orb with orbiting lights and lightning tendrils
+                billboard(ps, add, sz * 2.4f, col, 0.3f, 0, full);
+                billboard(ps, add, sz * 1.5f, col, 0.8f, 0, full);
+                billboard(ps, add, sz * 0.8f, 0xffffff, 1f, 0, full);
+                spin(ps, buf.getBuffer(RenderType.eyes(STAR)), sz * 3.2f, mix(col, 0xffffff, 0.4f), t * 0.12f, full);
+                spin(ps, buf.getBuffer(RenderType.eyes(STAR)), sz * 2.4f, hot, -t * 0.2f, full);
+                java.util.Random rnd = new java.util.Random(p.getId() * 31L + (long) (t / 1.5f));
+                VertexConsumer g = buf.getBuffer(RenderType.eyes(CAPSULE));
+                for (int i = 0; i < 5; i++) {
+                    Vec3 dir = new Vec3(rnd.nextGaussian(), rnd.nextGaussian(), rnd.nextGaussian()).normalize(); Vec3 prev = dir.scale(sz * 0.4);
+                    for (int j = 1; j <= 3; j++) { Vec3 q = dir.scale(sz * (0.4 + 0.5 * j)).add(new Vec3(rnd.nextGaussian(), rnd.nextGaussian(), rnd.nextGaussian()).scale(sz * 0.25)); ribbon(g, ps, prev, q, toCam, sz * 0.09f, sz * 0.07f, hot, 0.9f, full); prev = q; }
+                }
+            }
+            case FLAME -> { // flickering teardrop of fire dragging an ember tail
+                java.util.Random rnd = new java.util.Random(p.getId() * 13L + (long) (t * 2));
+                VertexConsumer cap = buf.getBuffer(RenderType.eyes(CAPSULE));
+                for (int i = 0; i < 3; i++) {
+                    double wob = 0.25 * sz * rnd.nextGaussian();
+                    oriented(cap, ps, new Vec3(wob, wob * 0.5, -wob), vel, toCam, sz * (2.6 - i * 0.5), sz * (1.5 - i * 0.35), -sz * 1.0, mix(col, 0xffe060, i / 2.5f), 0.7f, full);
+                }
+                billboard(ps, add, sz * 1.6f, 0xffb040, 0.6f, 0, full); billboard(ps, add, sz * 0.8f, 0xfff0a0, 1f, 0, full);
+            }
+            case HEART -> {
+                float pulse = 1 + 0.15f * (float) Math.sin(t * 0.7f);
+                billboard(ps, add, sz * 1.9f, col, 0.4f, 0, full);
+                spin(ps, buf.getBuffer(RenderType.entityCutoutNoCull(HEART_T)), sz * 1.2f * pulse, mix(0xffffff, col, 0.7f), 0, full);
             }
             case DART -> {
                 oriented(buf.getBuffer(RenderType.eyes(CAPSULE)), ps, Vec3.ZERO, vel, toCam, sz * 4.5, sz * 1.5, -sz, col, 0.6f, full);

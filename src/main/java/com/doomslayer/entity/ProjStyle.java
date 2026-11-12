@@ -22,7 +22,10 @@ public class ProjStyle {
     public float explodeRadius = 0, explodeKb = 0.6f; public boolean bounce; public float homing;
     public ParticleOptions trail;
     public boolean glow = true, visible = true;
-    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC, BEAM, FLASH, BLAST, RING, SLASH }
+    public enum Shape { AUTO, ORB, BOLT, DART, MISSILE, GRENADE, DISC, BEAM, FLASH, BLAST, RING, SLASH, PLASMA, NEEDLE, BFG, FLAME, HEART }
+    /** static field name (set at startup by reflection); lets the renderer pick a fitting look per weapon */
+    public String name = "";
+    private static boolean has(String n, String... k) { for (String x : k) if (n.contains(x)) return true; return false; }
     /** visual-only entity (tracer, beam segment, flash, blast, ring): never collides or damages */
     public boolean visual;
     public ProjStyle visual() { visual = true; return this; }
@@ -45,6 +48,19 @@ public class ProjStyle {
     /** explicit shape, or one guessed from the style's behaviour */
     public Shape resolved() {
         if (shape != Shape.AUTO) return shape;
+        String n = name.toUpperCase();
+        boolean warm = ((rgb >> 16) & 255) > 200 && ((rgb >> 8) & 255) < 170 && (rgb & 255) < 100;
+        if (!n.isEmpty()) {
+            if (has(n, "BFG")) return Shape.BFG;
+            if (has(n, "NEEDLE")) return Shape.NEEDLE;
+            if (has(n, "NADE", "FRAG", "BOMB", "GL_ROUND", "STICKY", "STUCK", "CHAINBALL", "MINE")) return Shape.GRENADE;
+            if (has(n, "ROCKET", "SPNKR", "MISSILE", "MICRO", "HYDRA", "LOCKON", "BARRAGE", "RRTS")) return Shape.MISSILE;
+            if (has(n, "PLASMA", "PP_", "PR_", "OVERCHARGE", "ACCEL", "PARRY_BOLT", "PULSE", "ELEC", "LASER")) return Shape.PLASMA;
+            if (has(n, "INCIN", "DRAGONFIRE", "FIREBALL", "FIREBOMB") && warm) return Shape.FLAME;
+            if (has(n, "SAW", "RIPPER", "SHURIKEN")) return Shape.DISC;
+            if (has(n, "HEART")) return Shape.HEART;
+            if (has(n, "SPIKE", "KNIFE", "SHARPDART", "SPEAR", "JAVELIN", "SHARD", "SHRAPNEL", "ARROW", "PULV_NO")) return Shape.DART;
+        }
         if (explodeRadius > 0 && homing > 0) return Shape.MISSILE;
         if (explodeRadius > 0 && gravity > 0) return Shape.GRENADE;
         if (explodeRadius > 0) return size <= 0.5f ? Shape.MISSILE : Shape.ORB;
@@ -76,6 +92,15 @@ public class ProjStyle {
     public static final ProjStyle VIS_BLAST = make().color(0xff8020).size(2f).shape(Shape.BLAST).visual();
     public static final ProjStyle VIS_SLASH = make().color(0xffffff).size(0.5f).shape(Shape.SLASH).visual();
     public static final ProjStyle VIS_RING = make().color(0xffffff).size(2f).shape(Shape.RING).visual();
+
+    /** give every static ProjStyle field of the kit classes (and their superclasses) its field name */
+    public static void nameAll(Iterable<Class<?>> classes) {
+        for (Class<?> c0 : classes) for (Class<?> c = c0; c != null && c != Object.class; c = c.getSuperclass())
+            for (java.lang.reflect.Field f : c.getDeclaredFields()) {
+                if (f.getType() != ProjStyle.class || !java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                try { f.setAccessible(true); ProjStyle p = (ProjStyle) f.get(null); if (p != null && p.name.isEmpty()) p.name = f.getName(); } catch (Exception ignored) {}
+            }
+    }
 
     public static void defaultImpact(SlayerProjectile p, Vec3 pos, Entity hit) {
         ServerLevel l = (ServerLevel) p.level();

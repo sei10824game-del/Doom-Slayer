@@ -3,6 +3,7 @@ package com.doomslayer;
 import com.doomslayer.client.KitClient;
 import com.doomslayer.client.ProjectileRenderer;
 import com.doomslayer.client.SlayerRenderer;
+import com.doomslayer.entity.ProjStyle;
 import com.doomslayer.entity.SlayerEntity;
 import com.doomslayer.entity.SlayerProjectile;
 import com.doomslayer.kit.Kits;
@@ -47,6 +48,7 @@ public class DoomSlayerMod {
                 @Override public Component getName(ItemStack s) { return Component.literal(k.name + " (" + k.game + ") Spawn Egg"); }
             });
         }
+        ProjStyle.nameAll(Kits.ALL.stream().<Class<?>>map(Object::getClass).toList());
         TABS.register("slayers", () -> CreativeModeTab.builder().title(Component.literal("Doom Slayer"))
                 .icon(() -> new ItemStack(Items.NETHERITE_SWORD))
                 .displayItems((p, out) -> ITEMS.getEntries().forEach(i -> out.accept(i.get()))).build());
