@@ -26,8 +26,27 @@ public class SlayerRenderer extends MobRenderer<SlayerEntity, SlayerModel> {
                 KitClient.ensureTextures(kit);
                 VertexConsumer vc = buf.getBuffer(RenderType.eyes(KitClient.get(kit).glowTex));
                 getParentModel().renderToBuffer(ps, vc, 0xF000F0, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
+                ghosts(ps, buf, light, e, pt);
             }
         });
+    }
+
+    /** afterimages: when the slayer moves fast (dash, dodge, lunge, thruster) draw fading ghosts trailing behind */
+    private void ghosts(PoseStack ps, MultiBufferSource buf, int light, SlayerEntity e, float pt) {
+        double dx = e.getX() - e.xo, dy = e.getY() - e.yo, dz = e.getZ() - e.zo; double sp = Math.sqrt(dx * dx + dz * dz);
+        if (sp < 0.3 || e.isInvisible()) return;
+        float yaw = net.minecraft.util.Mth.rotLerp(pt, e.yBodyRotO, e.yBodyRot); double a = Math.toRadians(-(180 - yaw));
+        double rx = dx * Math.cos(a) + dz * Math.sin(a), rz = -dx * Math.sin(a) + dz * Math.cos(a); // world delta -> model space (after the renderer's yaw + (-1,-1,1) flip)
+        KitClient.ensureTextures(kit);
+        VertexConsumer vc = buf.getBuffer(RenderType.entityTranslucent(KitClient.get(kit).tex));
+        int c = kit.eggSecondary; float r = 0.5f + 0.5f * ((c >> 16) & 255) / 255f, g = 0.5f + 0.5f * ((c >> 8) & 255) / 255f, b = 0.5f + 0.5f * (c & 255) / 255f;
+        for (int k = 1; k <= 3; k++) {
+            float back = k * 1.6f / kit.scale;
+            ps.pushPose();
+            ps.translate(rx * back, dy * back, -rz * back);
+            getModel().renderToBuffer(ps, vc, light, OverlayTexture.NO_OVERLAY, r, g, b, 0.42f - 0.11f * k);
+            ps.popPose();
+        }
     }
 
     @Override protected void scale(SlayerEntity e, PoseStack ps, float pt) { ps.scale(kit.scale, kit.scale, kit.scale); }

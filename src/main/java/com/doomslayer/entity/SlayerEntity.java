@@ -58,6 +58,7 @@ public class SlayerEntity extends PathfinderMob {
     public int animTick() { return level().isClientSide ? clientAnim : serverTick; }
     public int attackTicks() { return serverTick; }
     @Nullable public LivingEntity atkTarget;
+    private int lastGuardFx = -100;
 
     @Override
     public void tick() {
@@ -70,6 +71,12 @@ public class SlayerEntity extends PathfinderMob {
         for (int i = 0; i < cds.length; i++) if (cds[i] > 0) cds[i]--;
         if (gcd > 0) gcd--;
         kit.passive(this);
+        if (level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            var res = getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
+            if (res != null && res.getAmplifier() >= 3 && tickCount % 7 == 0) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f); // invulnerable / guard stance shimmer
+            double sp = getDeltaMovement().horizontalDistance();
+            if (sp > 0.55 && tickCount % 2 == 0) com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.CLOUD, position().add(0, 0.15, 0), 2, 0.15, 0.01); // dash / dodge dust
+        }
         AttackDef d = currentAttack();
         if (d != null) {
             LivingEntity t = atkTarget != null && atkTarget.isAlive() ? atkTarget : getTarget();
@@ -144,7 +151,20 @@ public class SlayerEntity extends PathfinderMob {
     public boolean hurt(DamageSource src, float amt) {
         Entity s = src.getEntity();
         if (s instanceof SlayerEntity o && !rival(this, o)) return false; // no friendly fire between same-owner slayers
-        if (!level().isClientSide) { amt = kit.modifyDamage(this, src, amt); if (amt <= 0) return false; }
+        if (!level().isClientSide) {
+            float before = amt; amt = kit.modifyDamage(this, src, amt);
+            var res = getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
+            boolean guarded = amt < before || (res != null && res.getAmplifier() >= 2), halo = kit.getClass().getSimpleName().startsWith("Halo");
+            if ((guarded || halo) && tickCount - lastGuardFx >= 3 && level() instanceof net.minecraft.server.level.ServerLevel sl) { // defence visuals
+                lastGuardFx = tickCount;
+                Entity from = src.getDirectEntity() != null ? src.getDirectEntity() : src.getEntity();
+                net.minecraft.world.phys.Vec3 dir = from != null ? from.position().subtract(position()).multiply(1, 0, 1) : getViewVector(1f).multiply(1, 0, 1);
+                dir = dir.lengthSqr() < 1e-4 ? getViewVector(1f) : dir.normalize();
+                if (guarded) com.doomslayer.fx.Fx.shield(sl, position().add(0, getBbHeight() * 0.6, 0).add(dir.scale(0.75)), dir, kit.eggSecondary, 0.95f * kit.scale);
+                if (halo || (res != null && res.getAmplifier() >= 3)) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f);
+            }
+            if (amt <= 0) return false;
+        }
         boolean r = super.hurt(src, amt);
         if (r && s instanceof SlayerEntity o && getTarget() == null) setTarget(o); // retaliate
         return r;

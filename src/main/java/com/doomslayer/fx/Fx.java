@@ -65,6 +65,14 @@ public final class Fx {
     public static void arc(ServerLevel l, Vec3 center, float yawDeg, float r, float fromDeg, float toDeg, float tiltDeg, int rgb, float size, int pts) {
         com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_SLASH, center, new Vec3(tiltDeg, 0, 0), rgb, Math.max(0.3f, size) * 0.5f + r * 0.0f, 6, new Vec3(yawDeg, fromDeg, toDeg), r);
     }
+    /** hex barrier flare facing 'normal' (block / parry / guard impact) */
+    public static void shield(ServerLevel l, Vec3 p, Vec3 normal, int rgb, float size) {
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_SHIELD, p, Vec3.ZERO, rgb, size, 8, normal.normalize());
+    }
+    /** full-body energy shield shimmer around an entity standing at 'feet' */
+    public static void bodyShield(ServerLevel l, Vec3 feet, int rgb, float height, float width) {
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_BODYSHIELD, feet, Vec3.ZERO, rgb, height, 8, null, width);
+    }
     /** muzzle / impact flash */
     public static void flash(ServerLevel l, Vec3 p, int rgb, float size) {
         com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_FLASH, p, Vec3.ZERO, rgb, size, 4, null);

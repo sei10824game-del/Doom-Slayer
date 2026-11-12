@@ -27,7 +27,7 @@ import org.joml.Matrix4f;
  * darts, missiles with exhaust flame, spinning grenades and saw discs, plus a tapering ribbon trail. All textures are generated procedurally.
  */
 public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
-    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING, CRYSTAL, HEART_T;
+    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING, CRYSTAL, HEART_T, HEX;
     public ProjectileRenderer(EntityRendererProvider.Context c) { super(c); }
 
     // ---------- procedural textures ----------
@@ -91,6 +91,13 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
         HEART_T = tex("heart", 32, 32, (x, y) -> {
             float dx = (x - 15.5f) / 11f, dy = -(y - 17f) / 11f; float v = (dx * dx + dy * dy - 1); boolean in = v * v * v - dx * dx * dy * dy * dy <= 0;
             return in ? gray(255, 255 - (int) ((y - 6) * 4)) : 0;
+        });
+        HEX = tex("hex", 64, 64, (x, y) -> { // triangular/hex lattice fading toward the rim
+            float px = x - 31.5f, py = y - 31.5f, d = (float) Math.hypot(px, py) / 32f; if (d > 1) return 0;
+            float a = 0;
+            for (int k = 0; k < 3; k++) { double ang = k * Math.PI / 3; double v = (px * Math.cos(ang) + py * Math.sin(ang)) / 9.0; double fr = Math.abs(v - Math.floor(v) - 0.5); a = Math.max(a, (float) Math.max(0, 1 - Math.abs(fr - 0.5) * 9)); }
+            a = Math.max(a * 0.9f, 0.12f) * (1 - sstep(0.75f, 1f, d));
+            return argb((int) (255 * a), 0xffffff);
         });
         RING = tex("ring", 64, 64, (x, y) -> {
             float d = (float) Math.hypot(x - 31.5f, y - 31.5f) / 32f; float a = (float) Math.exp(-Math.pow((d - 0.82f) * 11f, 2)) * (1 - sstep(0.9f, 1f, d));
@@ -278,6 +285,23 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                     else { billboard(ps, add, size * (1f - 0.7f * t) * k, col, fade, 0, full); billboard(ps, add, size * 0.4f * (1f - t) * k, mix(col, 0xffffff, 0.7f), fade, 0, full); }
                     ps.popPose();
                 }
+                return true;
+            }
+            case SHIELD -> { // hex barrier disc facing the attacker: lattice + expanding ripple + contact flash
+                Vec3 n = p.end(); if (n.lengthSqr() < 1e-4) n = toCam; n = n.normalize();
+                Vec3 u = n.cross(new Vec3(0, 1, 0)); if (u.lengthSqr() < 1e-4) u = new Vec3(1, 0, 0); u = u.normalize(); Vec3 v = n.cross(u).normalize();
+                float g = com.doomslayer.anim.Keys.outCubic(t), r1 = size * (0.75f + 0.35f * g), r2 = size * (0.3f + 1.0f * g);
+                sprite(buf.getBuffer(RenderType.eyes(HEX)), ps, Vec3.ZERO, u.scale(r1), v.scale(r1), toCam, col, 0.9f * fade, full);
+                sprite(buf.getBuffer(RenderType.eyes(RING)), ps, Vec3.ZERO, u.scale(r2), v.scale(r2), toCam, hot, 0.8f * fade, full);
+                sprite(buf.getBuffer(RenderType.eyes(GLOW)), ps, Vec3.ZERO, u.scale(size * 0.7f * (1 - t)), v.scale(size * 0.7f * (1 - t)), toCam, 0xffffff, fade, full);
+                return true;
+            }
+            case BODYSHIELD -> { // energy shield shimmer hugging the body: three rotating hoops + a hex sheet facing the viewer
+                float h = size * 0.5f, w = p.radius() * 0.75f; Vec3 c = new Vec3(0, h, 0);
+                VertexConsumer ring = buf.getBuffer(RenderType.eyes(RING));
+                for (int k = 0; k < 3; k++) { double a = k * Math.PI / 3 + t * 0.9; sprite(ring, ps, c, new Vec3(Math.cos(a) * w, 0, Math.sin(a) * w), new Vec3(0, h, 0), toCam, col, 0.55f * fade, full); }
+                Vec3 right = toCam.cross(new Vec3(0, 1, 0)); if (right.lengthSqr() > 1e-4) { right = right.normalize(); sprite(buf.getBuffer(RenderType.eyes(HEX)), ps, c, right.scale(w * 1.25f), new Vec3(0, h * 1.1f, 0), toCam, col, 0.5f * fade, full); }
+                sprite(buf.getBuffer(RenderType.eyes(GLOW)), ps, c, (right.lengthSqr() > 1e-4 ? right : new Vec3(1, 0, 0)).scale(w * 1.6f), new Vec3(0, h * 1.3f, 0), toCam, col, 0.25f * fade, full);
                 return true;
             }
             case SLASH -> { // crescent sweep: the bright head races along the arc, the tail thins out and fades
