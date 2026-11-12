@@ -49,8 +49,23 @@ public class SlayerModel extends EntityModel<SlayerEntity> {
             if (d.weaponL != null) p.weaponL = d.weaponL;
             d.anim.apply(p, t, age);
         }
-        if (e.deathTime > 0) { p.bodyX += 0.3f; p.headX += 0.4f; p.rArmZ += 1.0f; p.lArmZ -= 1.0f; }
-        if (e.hurtTime > 0) { float h = e.hurtTime / (float) Math.max(1, e.hurtDuration); p.bodyX -= 0.25f * h; p.headX -= 0.15f * h; }
+        if (e.hurtTime > 0 && e.deathTime == 0) { // flinch: snap back and sideways, arms jerk, knees give, stagger a half-step
+            float h = Math.max(0, (e.hurtTime - partial) / (float) Math.max(1, e.hurtDuration)), k = h * h * (3 - 2 * h), sd = ((e.getId() + e.tickCount / 10) & 1) == 0 ? 1 : -1;
+            p.bodyX -= 0.45f * k; p.bodyY += 0.35f * sd * k; p.bodyZ += 0.12f * sd * k; p.headX -= 0.35f * k; p.headZ += 0.2f * sd * k;
+            p.rArmX -= 0.45f * k; p.rArmZ += 0.5f * k; p.lArmX -= 0.3f * k; p.lArmZ -= 0.5f * k;
+            p.lLegX += 0.3f * k; p.rLegX -= 0.25f * k; p.rootY -= 0.9f * k; p.rootZ += 1.6f * k; p.rootRoll += 0.08f * sd * k;
+        }
+        if (e.deathTime > 0) { // death: buckle to the knees, drop the weapons, pitch forward onto the ground, small bounce, lie still
+            float t = Math.min(1f, (e.deathTime + partial) / 20f), k1 = Keys.smooth(Keys.win(t, 0, .35f)), k2 = Keys.inQuad(Keys.win(t, .35f, .8f)), bounce = Keys.bump(Keys.win(t, .8f, 1f));
+            Pose d0 = p; float keep = 1 - k1;
+            p.rArmX = d0.rArmX * keep + 0.25f * k1 - 1.2f * k2; p.lArmX = d0.lArmX * keep + 0.15f * k1 - 1.0f * k2; p.rArmZ = d0.rArmZ * keep + 0.35f * k1 + 0.5f * k2; p.lArmZ = d0.lArmZ * keep - 0.35f * k1 - 0.5f * k2;
+            p.rArmY *= keep; p.lArmY *= keep; p.rHandX *= keep; p.lHandX *= keep;
+            p.bodyX = d0.bodyX * keep + 0.55f * k1 - 0.35f * k2; p.bodyY *= keep; p.bodyZ = 0.15f * k2; p.headX = 0.6f * k1 - 0.2f * k2; p.headY *= keep; p.headZ = 0.35f * k2;
+            p.lLegX = d0.lLegX * keep - 0.9f * k1 * (1 - k2) + 0.15f * k2; p.rLegX = d0.rLegX * keep + 0.7f * k1 * (1 - k2) - 0.1f * k2; p.lLegZ = -0.12f * k2; p.rLegZ = 0.18f * k2;
+            p.rootY = d0.rootY * keep - 4.5f * k1 * (1 - k2) - 0.6f * k2 + 0.6f * bounce; p.rootZ = d0.rootZ * keep - 1.5f * k2; p.rootYaw *= keep; p.rootRoll = 0.1f * k2;
+            p.rootPitch = 1.45f * k2 - 0.06f * bounce;
+            if (t > 0.3f) { p.weaponR = null; p.weaponL = null; }
+        }
         apply(p);
     }
 

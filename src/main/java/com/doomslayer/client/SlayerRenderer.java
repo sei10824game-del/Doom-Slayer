@@ -49,6 +49,8 @@ public class SlayerRenderer extends MobRenderer<SlayerEntity, SlayerModel> {
         }
     }
 
+    @Override protected float getFlipDegrees(SlayerEntity e) { return 0; } // the model does its own collapse animation
+
     @Override protected void scale(SlayerEntity e, PoseStack ps, float pt) { ps.scale(kit.scale, kit.scale, kit.scale); }
 
     @Override

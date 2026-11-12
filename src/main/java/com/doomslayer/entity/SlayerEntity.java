@@ -58,7 +58,7 @@ public class SlayerEntity extends PathfinderMob {
     public int animTick() { return level().isClientSide ? clientAnim : serverTick; }
     public int attackTicks() { return serverTick; }
     @Nullable public LivingEntity atkTarget;
-    private int lastGuardFx = -100;
+    private int lastGuardFx = -100, lastHitFx = -100;
 
     @Override
     public void tick() {
@@ -145,6 +145,29 @@ public class SlayerEntity extends PathfinderMob {
     public void die(DamageSource src) {
         if (!level().isClientSide && kit.preventDeath(this)) return;
         super.die(src);
+        if (level() instanceof net.minecraft.server.level.ServerLevel sl) { // death burst
+            net.minecraft.world.phys.Vec3 c = position().add(0, getBbHeight() * 0.55, 0);
+            com.doomslayer.fx.Fx.flash(sl, c, kit.eggSecondary, 1.1f); com.doomslayer.fx.Fx.ring(sl, position().add(0, 0.1, 0), 2.6f, kit.eggSecondary, 1.5f, 24);
+            com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.CRIT, c, 16, 0.25, 0.4);
+            com.doomslayer.fx.Fx.dustBurst(sl, kit.eggPrimary, 1.6f, c, 18, 0.5); com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.SMOKE, c, 8, 0.4, 0.02);
+        }
+    }
+
+    /** custom death: collapse (20 ticks, animated client-side), lie still, then dissolve into rising light instead of the vanilla poof */
+    @Override
+    protected void tickDeath() {
+        ++deathTime;
+        if (level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            if (deathTime >= 20 && deathTime % 2 == 0) {
+                net.minecraft.world.phys.Vec3 f = net.minecraft.world.phys.Vec3.directionFromRotation(0, yBodyRot).scale(getBbHeight() * 0.5 * random.nextDouble());
+                net.minecraft.world.phys.Vec3 c = position().add(f).add(0, 0.25, 0);
+                com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.END_ROD, c, 3, 0.35, 0.02); com.doomslayer.fx.Fx.dustBurst(sl, kit.eggSecondary, 1.3f, c, 4, 0.4);
+            }
+            if (deathTime >= 32 && !isRemoved()) {
+                com.doomslayer.fx.Fx.flash(sl, position().add(0, 0.4, 0), kit.eggSecondary, 0.9f); com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.SMOKE, position().add(0, 0.3, 0), 10, 0.5, 0.02);
+                remove(RemovalReason.KILLED);
+            }
+        }
     }
 
     @Override
@@ -166,6 +189,16 @@ public class SlayerEntity extends PathfinderMob {
             if (amt <= 0) return false;
         }
         boolean r = super.hurt(src, amt);
+        if (r && tickCount - lastHitFx >= 2 && level() instanceof net.minecraft.server.level.ServerLevel sl) { // hit reaction: sparks + armour chips in the kit colour
+            lastHitFx = tickCount;
+            Entity from = src.getDirectEntity() != null ? src.getDirectEntity() : src.getEntity();
+            net.minecraft.world.phys.Vec3 d = from != null ? from.position().subtract(position()).multiply(1, 0, 1) : net.minecraft.world.phys.Vec3.ZERO;
+            d = d.lengthSqr() < 1e-4 ? net.minecraft.world.phys.Vec3.ZERO : d.normalize().scale(0.4);
+            net.minecraft.world.phys.Vec3 hp = position().add(0, getBbHeight() * (0.45 + random.nextDouble() * 0.3), 0).add(d);
+            com.doomslayer.fx.Fx.flash(sl, hp, 0xfff0d0, 0.4f + Math.min(0.5f, amt * 0.03f));
+            com.doomslayer.fx.Fx.burst(sl, net.minecraft.core.particles.ParticleTypes.CRIT, hp, 6, 0.1, 0.3);
+            com.doomslayer.fx.Fx.dustBurst(sl, kit.eggPrimary, 1.2f, hp, 5, 0.2);
+        }
         if (r && s instanceof SlayerEntity o && getTarget() == null) setTarget(o); // retaliate
         return r;
     }
