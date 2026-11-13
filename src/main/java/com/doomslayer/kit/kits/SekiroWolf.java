@@ -92,20 +92,59 @@ public class SekiroWolf extends SlayerKit {
 
     private static void guardPosture(SlayerEntity e, net.minecraft.nbt.CompoundTag d, float add) {
         float p = d.getFloat("w_post") + add;
-        if (p >= 100) { // Wolf's own posture breaks: staggered
+        if (p >= postCap(e)) { // Wolf's own posture breaks: staggered
             p = 30; e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 4)); snd(e, SoundEvents.GLASS_BREAK, 0.8f, 0.8f);
             Fx.burst(L(e), ParticleTypes.CRIT, e.position().add(0, 2, 0), 14, 0.4, 0.2);
         }
         d.putFloat("w_post", p);
     }
 
+
+    // ================= progression: prayer beads, attack power, spirit emblems =================
+    static int emb(SlayerEntity e) { return e.getPersistentData().getInt("w_emb"); }
+    static void emb(SlayerEntity e, int d) { e.getPersistentData().putInt("w_emb", Math.max(0, Math.min(5 + Prog.get(e, "w_rosary"), emb(e) + d))); }
+    static float postCap(SlayerEntity e) { return 100 + 25 * Prog.get(e, "w_rosary"); }
+    /** gate an art behind spirit emblems (形代) */
+    static AttackDef cost(AttackDef a, int c) { return c <= 0 ? a : a.when((e, t) -> emb(e) >= c).onStart((e, t, n) -> emb(e, -c)); }
+
+    /** raise an enemy's posture; breaking it stuns it (deathblow window) */
+    static void postDmg(SlayerEntity e, LivingEntity a, float add) {
+        var ad = a.getPersistentData(); float post = ad.getFloat("w_post") + add; long now = now(e);
+        if (post >= 100) {
+            ad.putFloat("w_post", 0); ad.putLong("w_stun", now + 90);
+            if (!ad.contains("w_marks")) ad.putInt("w_marks", a.getMaxHealth() >= 300 ? 3 : a.getMaxHealth() >= 150 ? 2 : 1); // bosses need several deathblows
+            a.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 90, 6)); a.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 90, 2));
+            Fx.burst(L(e), ParticleTypes.CRIT, a.position().add(0, a.getBbHeight(), 0), 20, 0.4, 0.3); snd(e, SoundEvents.ANVIL_PLACE, 0.8f, 1.3f);
+        } else ad.putFloat("w_post", post);
+    }
+    /** art hit with posture damage */
+    static int artHit(SlayerEntity e, double range, float dmg, float post, double kb, double up, int rgb) {
+        int n = 0; for (LivingEntity f : Combat.cone(e, range, 60)) { Combat.damage(e, f, dmg); postDmg(e, f, post); Combat.knock(f, e.position(), kb, up); Fx.dustBurst(L(e), rgb, 1f, mid(f), 6, 0.3); n++; }
+        return n;
+    }
+
+    @Override
+    public void onKill(SlayerEntity e, LivingEntity v) {
+        emb(e, 1); // enemies drop spirit emblems
+        if (Prog.strong(v)) { // mini-boss class: a prayer bead; four make a rosary -> vitality + posture
+            int beads = Prog.add(e, "w_bead", 1);
+            if (beads % 4 == 0) { Prog.add(e, "w_rosary", 1); Prog.growHp(e, 0.12); Prog.say(e, "Prayer Necklace complete! Vitality and posture up", 0xe0c060); }
+            else Prog.say(e, "Prayer Bead " + (beads % 4) + "/4", 0xe0c060);
+        }
+        if (Prog.boss(v)) { // bosses leave a Memory: attack power up, and a gourd seed
+            Prog.growDmg(e, 0.1f); int seeds = Prog.add(e, "w_seed", 1);
+            Prog.say(e, "Memory gained: Attack Power up (Gourd Seed " + seeds + ")", 0xff8040);
+        }
+    }
+
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.5f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.4f; p.bodyX += 0.05f; p.lArmX = -0.2f + p.lArmX * 0.5f; }
 
     @Override
     public void passive(SlayerEntity e) { // Healing Gourd + posture recovery
-        var d = e.getPersistentData(); float po = d.getFloat("w_post"); if (po > 0) d.putFloat("w_post", Math.max(0, po - (e.getHealth() / e.getMaxHealth() > 0.5f ? 0.2f : 0.1f)));
+        var d = e.getPersistentData(); if (!d.contains("w_emb")) d.putInt("w_emb", 3); float po = d.getFloat("w_post"); if (po > 0) d.putFloat("w_post", Math.max(0, po - (e.getHealth() / e.getMaxHealth() > 0.5f ? 0.2f : 0.1f)));
+        if (e.tickCount % 500 == 0) emb(e, 1); // slow emblem recovery
         if (e.tickCount % 400 == 0 && e.getHealth() < e.getMaxHealth() * 0.5f) {
-            e.heal(e.getMaxHealth() * 0.3f); snd(e, SoundEvents.GENERIC_DRINK, 0.8f, 1f); Fx.burst(L(e), ParticleTypes.HAPPY_VILLAGER, e.position().add(0, 1.2, 0), 10, 0.4, 0.05);
+            e.heal(e.getMaxHealth() * (0.3f + 0.04f * Prog.get(e, "w_seed"))); snd(e, SoundEvents.GENERIC_DRINK, 0.8f, 1f); Fx.burst(L(e), ParticleTypes.HAPPY_VILLAGER, e.position().add(0, 1.2, 0), 10, 0.4, 0.05);
         }
     }
 
@@ -116,6 +155,10 @@ public class SekiroWolf extends SlayerKit {
         for (AttackDef a : out) if (a.id.equals("ichimonji")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 14 / 28f), 0, 1.2f);
         for (AttackDef a : out) if (a.id.equals("ashina_cross")) a.anim = KU.comboAnim(new int[] {8, 14}, 30, new int[] {0, 1});
         for (AttackDef a : out) if (a.id.equals("sabimaru")) a.anim = KU.comboAnim(new int[] {5, 12}, 22, new int[] {0, 1});
+        for (AttackDef a : out) switch (a.id) {
+            case "ashina_cross" -> cost(a, 2); case "spiral_cloud_passage" -> cost(a, 1); case "dragon_flash" -> cost(a, 3); case "nightjar_slash" -> cost(a, 1);
+            default -> { }
+        }
         for (AttackDef a : out) if (a.id.equals("kusabimaru")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 5 / 14f), 0, 1f);
     }
 
@@ -312,6 +355,76 @@ public class SekiroWolf extends SlayerKit {
                     p.rootY += 1.2f * air; p.bodyX -= 0.4f * air; p.rLegX = -1.5f * Math.max(0, s) * air; p.lLegX = -1.5f * Math.max(0, -s) * air; p.rArmX = -0.8f * air; p.lArmX = -0.8f * air;
                 }));
 
+
+        // ================= Combat Arts (流派技) =================
+        // 旋風斬り — Whirlwind Slash (unparryable spin)
+        out.add(AttackDef.of("whirlwind_slash").range(0, 4f).cd(90).weight(2).dur(30).weapon("kusabimaru")
+                .tick((e, t, n) -> { if (n == 8 || n == 13 || n == 18) { slash(e, 359, 0, 0, 0xffffff); artHit(e, 4f, 5, 14, 0.7, 0.2, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.8f + n * 0.02f); } })
+                .anim((p, t, a) -> { float c = bump(win(t, .1f, .85f)); p.rootYaw += 6.28f * 2 * win(t, .2f, .75f); p.rArmZ = 1.5f * c; p.rArmX = -0.3f; p.lArmZ = -1.1f * c; p.rootY -= 0.7f * c; }));
+        // 奥義・大忍び刺し — Great Shinobi Thrust (spirit emblems 2): skewer, then vault off the enemy
+        out.add(cost(AttackDef.of("great_shinobi_thrust").range(0, 4.2f).cd(160).weight(2).dur(30).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n == 6) Combat.lunge(e, 0.9, 0);
+                    if (n == 10 && artHit(e, 4.2, 20, 40, 0.8, 0.15, 0xffffff) > 0) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(-f.x * 0.45, 0.85, -f.z * 0.45); e.hurtMarked = true; snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 1.2f); }
+                }).anim((p, t, a) -> { KU.strikePose(p, KU.remap(t, 10 / 30f), 3, 1.2f); float v = win(t, .4f, .7f) * (1 - win(t, .85f, 1f)); p.rootY += 1.5f * v; p.lLegX -= 0.7f * v; }), 2));
+        // 寄鷹斬り — Mist Raven: spinning dive into the enemy
+        out.add(AttackDef.of("mist_raven_dive").range(3, 9).cd(110).weight(2).dur(30).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n == 3) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(f.x * 0.75, 0.5, f.z * 0.75); e.hurtMarked = true; }
+                    if (n >= 8 && n < 20 && n % 4 == 0) { slash(e, 359, 0, 20, 0xc0c8e0); artHit(e, 3.6f, 6, 12, 0.5, 0.2, 0xc0c8e0); }
+                }).anim((p, t, a) -> { float air = win(t, .08f, .25f) * (1 - win(t, .75f, .95f)); p.rootYaw += 6.28f * 2 * win(t, .2f, .7f); p.rootY += 1.6f * air; p.rArmX = lerp(p.rArmX, -1.55f, air); p.lLegX -= 0.7f * air; p.bodyX += 0.5f * air; }));
+        // 奥義・纏い斬り — Empowered slash: imbues the blade with fire (spirit emblem 1)
+        out.add(cost(AttackDef.of("imbue_slash").range(0, 6).cd(120).weight(2).dur(24).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n < 8) Fx.burst(L(e), ParticleTypes.FLAME, mz(e), 2, 0.2, 0.01);
+                    if (n == 10) { slash(e, 90, -90, 20, FIRE); for (LivingEntity f : Combat.cone(e, 4, 70)) { Combat.damage(e, f, 11); f.setSecondsOnFire(6); postDmg(e, f, 25); } Fx.beam(L(e), mz(e), mz(e).add(e.getViewVector(1f).scale(5)), FIRE, 1.2f, 0.4); snd(e, SoundEvents.BLAZE_SHOOT, 1f, 0.8f); }
+                }).anim((p, t, a) -> KU.strikePose(p, KU.remap(t, 10 / 24f), 0, 1.2f)), 1));
+        // 一文字・二連 — Ichimonji Double
+        out.add(AttackDef.of("ichimonji_double").range(0, 3.8f).cd(130).weight(2).dur(42).weapon("kusabimaru")
+                .tick((e, t, n) -> { if (n == 3) Combat.lunge(e, 0.5, 0); if (n == 13 || n == 29) { slash(e, 90, -90, 25, 0xffffff); artHit(e, 3.8f, n == 13 ? 14 : 12, 30, 1.0, 0.3, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.8f); if (n == 29) e.getPersistentData().putFloat("w_post", Math.max(0, e.getPersistentData().getFloat("w_post") - 25)); } })
+                .anim(KU.comboAnim(new int[] {13, 29}, 42, new int[] {2, 0})));
+        // 拝み連拳 — Praying Strikes (elbow & palm) / 破魔の型 — Exorcism: ends with a heavy back strike
+        out.add(AttackDef.of("praying_strikes").range(0, 3f).cd(60).weight(2).dur(24)
+                .tick((e, t, n) -> { if (n == 5 || n == 10 || n == 15) { artHit(e, 3f, 4, 14, 0.3, 0.05, 0xffe8c0); snd(e, SoundEvents.PLAYER_ATTACK_STRONG, 0.9f, 1.2f); } })
+                .anim(KU.comboAnim(new int[] {5, 10, 15}, 24, new int[] {5, 4, 5})));
+        out.add(AttackDef.of("praying_strikes_exorcism").range(0, 3.2f).cd(100).weight(2).dur(36)
+                .tick((e, t, n) -> { if (n == 5 || n == 10 || n == 15) { artHit(e, 3f, 4, 14, 0.3, 0.05, 0xffe8c0); snd(e, SoundEvents.PLAYER_ATTACK_STRONG, 0.9f, 1.2f); } if (n == 27) { artHit(e, 3.4f, 12, 40, 1.4, 0.3, 0xffd070); Fx.ring(L(e), e.position().add(0, 1, 0), 2f, 0xffd070, 1.4f, 20); snd(e, SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1.2f, 0.7f); } })
+                .anim(KU.comboAnim(new int[] {5, 10, 15, 27}, 36, new int[] {5, 4, 5, 3})));
+        // 仙峯脚 / 奥義・仙峯寺菩薩脚 — kick, cut, kick (big posture damage)
+        out.add(AttackDef.of("senpo_bodhisattva_kick").range(2, 7).cd(130).weight(2).dur(34)
+                .tick((e, t, n) -> {
+                    if (n == 2) Combat.lunge(e, 0.9, 0.3);
+                    if (n == 8 || n == 26) { artHit(e, 3.4f, n == 8 ? 7 : 9, 40, n == 26 ? 1.2 : 0.4, 0.15, 0xffe8c0); snd(e, SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1f, 1.0f); }
+                    if (n == 17) { slash(e, 80, -80, 0, 0xffffff); artHit(e, 3.6f, 8, 20, 0.4, 0.1, 0xffffff); }
+                }).anim((p, t, a) -> { float s = (float) Math.sin(t * PI * 3f), air = win(t, .05f, .2f) * (1 - win(t, .85f, 1f)); p.rootY += 1.2f * air; p.rLegX = -1.6f * Math.max(0, s) * air; p.lLegX = -1.6f * Math.max(0, -s) * air; p.rArmX = lerp(p.rArmX, -1.2f, air * (1 - bump(win(t, .4f, .6f)))); }));
+        // 秘伝・大忍び落とし — Shinobi Great Thrust into a plunging spin slash (emblems 2)
+        out.add(cost(AttackDef.of("shadowfall").range(3, 9).cd(180).weight(2).dur(40).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n == 5) Combat.lunge(e, 0.8, 0);
+                    if (n == 9) artHit(e, 4f, 12, 30, 0.5, 0.2, 0xffffff);
+                    if (n == 14) { e.setDeltaMovement(0, 1.0, 0); e.hurtMarked = true; }
+                    if (n == 22 && t != null) { Vec3 d = t.position().subtract(e.position()).normalize(); e.setDeltaMovement(d.x * 0.7, -1.3, d.z * 0.7); e.hurtMarked = true; }
+                    if (n == 28) { slash(e, 359, 0, -30, 0xffffff); artHit(e, 4f, 18, 50, 1.0, 0.4, 0xffffff); Fx.ring(L(e), e.position().add(0, 0.2, 0), 2.8f, 0xffffff, 1.5f, 22); snd(e, SoundEvents.ANVIL_LAND, 0.8f, 1.3f); }
+                }).anim((p, t, a) -> { float air = win(t, .3f, .45f) * (1 - win(t, .72f, .78f)); p.rArmX = lerp(-0.4f, -1.55f, win(t, .1f, .25f)) * (1 - air) + (-3.0f * air); p.rootYaw += 6.28f * win(t, .6f, .72f); p.rootY += 1.8f * air; p.lLegX -= 0.7f * air; }), 2));
+        // 奥義・不死斬り — Immortal Severance: a miasma-wreathed sweep (emblems 3)
+        out.add(cost(AttackDef.of("immortal_severance").range(3, 11).cd(240).weight(1).dur(36).weapon("kusabimaru")
+                .tick((e, t, n) -> {
+                    if (n >= 4 && n < 14) Fx.dustBurst(L(e), 0x7a40b0, 1.2f, mz(e), 3, 0.3);
+                    if (n == 16) { Vec3 d = aim(e, t, 0), m = mz(e); Combat.hitscan(e, m, d, 12, 22f, 8, 0x9a60e0); for (LivingEntity f : Combat.cone(e, 10, 40)) { f.addEffect(new MobEffectInstance(MobEffects.WITHER, 100, 1)); postDmg(e, f, 35); } slash(e, 100, -100, 10, 0x9a60e0); Fx.beam(L(e), m, m.add(d.scale(11)), 0x7a40b0, 1.5f, 0.3); snd(e, SoundEvents.WITHER_SHOOT, 0.7f, 0.8f); }
+                }).anim((p, t, a) -> KU.strikePose(p, KU.remap(t, 16 / 36f), 0, 1.3f)), 3));
+        // 奥義・浮き舟渡り — Floating Passage: a five-cut dance (emblems 2)
+        out.add(cost(AttackDef.of("floating_passage").range(0, 3.6f).cd(150).weight(2).dur(40).weapon("kusabimaru")
+                .tick((e, t, n) -> { if (n == 4) Combat.lunge(e, 0.5, 0); if (n == 6 || n == 12 || n == 18 || n == 24 || n == 30) { slash(e, n % 12 == 6 ? 80 : -80, n % 12 == 6 ? -80 : 80, 15 + (n % 3) * 20, 0xffffff); artHit(e, 3.6f, n == 30 ? 9 : 5, 20, n == 30 ? 1.0 : 0.3, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.2f + n * 0.01f); } })
+                .anim(KU.comboAnim(new int[] {6, 12, 18, 24, 30}, 40, new int[] {0, 1, 0, 1, 3})), 2));
+        // 秘伝・一心 — Ichishin: draw stance, then a rapid four-cut (emblems 3)
+        out.add(cost(AttackDef.of("isshin").range(0, 3.8f).cd(220).weight(1).dur(44).weapon("kusabimaru")
+                .tick((e, t, n) -> { if (n == 4) snd(e, SoundEvents.ARMOR_EQUIP_IRON, 1f, 0.7f); if (n == 12) Combat.lunge(e, 1.0, 0); if (n == 14 || n == 19 || n == 24 || n == 31) { slash(e, n % 10 == 4 ? 85 : -85, n % 10 == 4 ? -85 : 85, 10, 0xffe090); artHit(e, 3.8f, n == 31 ? 16 : 7, 28, n == 31 ? 1.4 : 0.4, 0.2, 0xffe090); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1.1f, 1.3f); } })
+                .anim(KU.comboAnim(new int[] {14, 19, 24, 31}, 44, new int[] {0, 1, 0, 2})), 3));
+        // 霧がらす — Mist Raven tool: a smoke burst that makes enemies lose you
+        out.add(AttackDef.of("mist_raven").range(0, 8).cd(300).weight(1).dur(20).noLos()
+                .tick((e, t, n) -> { if (n == 6) { Vec3 c = e.position().add(0, 1, 0); Fx.burst(L(e), ParticleTypes.LARGE_SMOKE, c, 28, 1.2, 0.04); Fx.burst(L(e), ParticleTypes.CLOUD, c, 18, 1.0, 0.04); e.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 60, 0, false, false)); for (LivingEntity f : Combat.around(e, e.position(), 6)) { f.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 80, 0)); if (f instanceof net.minecraft.world.entity.Mob m) m.setTarget(null); } snd(e, SoundEvents.FIREWORK_ROCKET_BLAST, 0.8f, 0.6f); } })
+                .anim((p, t, a) -> { float c = bump(win(t, .1f, .8f)); p.lArmX = -1.4f * c; p.bodyX += 0.2f * c; p.rootY -= 0.5f * c; }));
+
         // ---------- Deathblow on a posture-broken enemy (kills regular foes, halves bosses) ----------
         out.add(AttackDef.of("posture_deathblow").range(0, 3.6f).cd(30).weight(8).dur(26).weapon("kusabimaru")
                 .when((e, t) -> now(e) < t.getPersistentData().getLong("w_stun"))
@@ -321,8 +434,10 @@ public class SekiroWolf extends SlayerKit {
                     if (n == 11 && t != null) {
                         Fx.dustBurst(L(e), 0xb01010, 1.6f, mid(t), 36, 0.45); slash(e, 90, -90, 0, 0xffffff); Fx.ring(L(e), mid(t), 2f, 0xff3030, 1.6f, 20);
                         snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1.3f, 0.5f); snd(e, SoundEvents.WITHER_BREAK_BLOCK, 0.4f, 1.6f);
-                        t.getPersistentData().putLong("w_stun", 0);
-                        Combat.damage(e, t, t.getMaxHealth() <= 120 ? t.getHealth() + 60 : t.getMaxHealth() * 0.5f);
+                        var td = t.getPersistentData(); td.putLong("w_stun", 0); int marks = td.contains("w_marks") ? td.getInt("w_marks") : (t.getMaxHealth() >= 300 ? 3 : t.getMaxHealth() >= 150 ? 2 : 1);
+                        if (marks <= 1) { td.remove("w_marks"); Combat.damage(e, t, t.getHealth() + 60); }
+                        else { td.putInt("w_marks", marks - 1); Combat.damage(e, t, t.getMaxHealth() * (0.9f / marks)); if (e.getOwner() != null) e.getOwner().displayClientMessage(Component.literal("Deathblow! " + (marks - 1) + " more"), true); }
+                        emb(e, 1);
                     }
                 }).anim((p, t, a) -> stab(p, t, 11 / 26f)));
 

@@ -37,6 +37,17 @@ public class Chara extends SlayerKit {
         idleWeaponR = "real_knife";
     }
 
+    static final int[] LV_EXP = {0, 10, 30, 70, 120, 200, 300, 500, 800, 1200, 1700, 2500, 3500, 5000, 7000, 10000, 15000, 25000, 50000, 99999};
+    /** LOVE: kills grant EXP; each LV raises max HP and AT (up to LV 20), like Undertale's LOVE */
+    @Override
+    public void onKill(SlayerEntity e, net.minecraft.world.entity.LivingEntity v) {
+        var d = e.getPersistentData(); int exp = d.getInt("ch_exp") + Math.max(1, (int) (v.getMaxHealth() / 2)), lv = Math.max(1, d.getInt("ch_lv"));
+        d.putInt("ch_exp", exp); int old = lv;
+        while (lv < 20 && exp >= LV_EXP[lv]) lv++;
+        if (lv > old) { d.putInt("ch_lv", lv); Prog.growHp(e, 0.04 * (lv - old)); Prog.growDmg(e, 0.05f * (lv - old)); Prog.say(e, "LOVE increased. (LV " + lv + ")", 0xff2020); }
+        else if (d.getInt("ch_lv") == 0) d.putInt("ch_lv", 1);
+    }
+
     @Override
     public boolean preventDeath(SlayerEntity e) {
         var d = e.getPersistentData();

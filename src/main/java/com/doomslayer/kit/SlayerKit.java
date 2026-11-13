@@ -55,4 +55,7 @@ public abstract class SlayerKit {
 
     /** SERVER: adjust incoming damage before it applies (return <= 0 to negate completely). Used for parry/guard. */
     public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return amt; }
+
+    /** SERVER: this slayer just killed 'victim' (progression: beads, level-ups, upgrades...). */
+    public void onKill(SlayerEntity e, net.minecraft.world.entity.LivingEntity victim) { com.doomslayer.kit.kits.Prog.familyKill(this, e, victim); }
 }

@@ -58,6 +58,8 @@ public class SlayerEntity extends PathfinderMob {
     public int animTick() { return level().isClientSide ? clientAnim : serverTick; }
     public int attackTicks() { return serverTick; }
     @Nullable public LivingEntity atkTarget;
+    /** progression-based damage multiplier (levels, upgrades), saved with the entity */
+    public float dmgScale() { var d = getPersistentData(); return d.contains("ds_dmgx") ? d.getFloat("ds_dmgx") : 1f; }
     private int lastGuardFx = -100, lastHitFx = -100, airTicks, lastHealFx = -100;
     private float lastHp = -1, healAcc;
     /** CLIENT: countdown of the rise-up animation after a revival */

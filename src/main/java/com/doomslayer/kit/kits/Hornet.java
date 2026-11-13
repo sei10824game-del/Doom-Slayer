@@ -38,6 +38,14 @@ public class Hornet extends SlayerKit {
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.4f + p.rArmX * 0.5f; p.rArmZ = 0.15f; p.rHandX = 0.5f; p.bodyX += 0.04f; }
 
+    /** Mask Shards (4 = +HP), Spool Fragments, needle upgrades from bosses */
+    @Override
+    public void onKill(SlayerEntity e, LivingEntity v) {
+        if (Prog.strong(v)) { Prog.piece(e, "hn_shard", 4, 0.1, "Mask Shard", 0xffe0e8); }
+        if (Prog.boss(v)) { int n = Prog.add(e, "hn_needle", 1); Prog.growDmg(e, 0.12f); Prog.say(e, "Needle sharpened (" + n + ")", 0xc01830); }
+        silk(e, 2);
+    }
+
     /** SILK 0..9: +1 per needle hit, spent by silk skills and Bind */
     static int silk(SlayerEntity e) { return e.getPersistentData().getInt("hn_silk"); }
     static void silk(SlayerEntity e, int add) { if (add != 0) e.getPersistentData().putInt("hn_silk", Math.max(0, Math.min(9, silk(e) + add))); }

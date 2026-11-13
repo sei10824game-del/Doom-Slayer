@@ -37,6 +37,14 @@ public class HollowKnight extends SlayerKit {
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.3f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.7f; p.bodyX += 0.05f; }
 
+    /** Mask Shards (4 = +1 mask), Vessel Fragments (3 = bigger soul meter) and Pale Ore nail upgrades from bosses */
+    @Override
+    public void onKill(SlayerEntity e, LivingEntity v) {
+        if (Prog.strong(v)) { Prog.piece(e, "hk_shard", 4, 0.1, "Mask Shard", 0xf0f4ff); if (Prog.get(e, "hk_shard") % 2 == 0) Prog.piece(e, "hk_vessel", 3, 0.0, "Vessel Fragment", 0x80c0ff); }
+        if (Prog.boss(v)) { int n = Prog.add(e, "hk_nail", 1); Prog.growDmg(e, 0.12f); Prog.say(e, "Nail upgraded (Pale Ore " + n + ")", 0xffffff); }
+        soul(e, 11);
+    }
+
     /** SOUL meter 0..99: filled by nail hits, spent by spells and Focus */
     static int soul(SlayerEntity e) { return e.getPersistentData().getInt("hk_soul"); }
     static void soul(SlayerEntity e, int add) { if (add != 0) e.getPersistentData().putInt("hk_soul", Math.max(0, Math.min(99, soul(e) + add))); }
