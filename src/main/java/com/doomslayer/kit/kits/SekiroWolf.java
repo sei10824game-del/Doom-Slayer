@@ -40,15 +40,15 @@ public class SekiroWolf extends SlayerKit {
     }
 
     @Override
-    public boolean preventDeath(SlayerEntity e) { // Resurrection: once, with half health
-        var d = e.getPersistentData();
-        if (d.getBoolean("ds_wolf_res")) return false;
-        d.putBoolean("ds_wolf_res", true);
+    public boolean preventDeath(SlayerEntity e) { // Resurrection: 2 charges, one more regained every 10 kills (回生)
+        var d = e.getPersistentData(); int c = d.contains("w_resc") ? d.getInt("w_resc") : 2;
+        if (c <= 0) return false;
+        d.putInt("w_resc", c - 1);
         e.setHealth(e.getMaxHealth() * 0.5f);
         e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 3));
         Fx.dustBurst(L(e), 0xffffff, 1.4f, e.position().add(0, 1, 0), 30, 0.6); Fx.ring(L(e), e.position().add(0, 0.3, 0), 2.5f, GOLD, 1.5f, 24);
         snd(e, SoundEvents.TOTEM_USE, 0.8f, 0.8f);
-        if (e.getOwner() != null) e.getOwner().displayClientMessage(Component.literal("Wolf: Resurrection!"), true);
+        if (e.getOwner() != null) e.getOwner().displayClientMessage(Component.literal("Wolf: Resurrection! (" + (c - 1) + " left)"), true);
         return true;
     }
 
@@ -75,8 +75,8 @@ public class SekiroWolf extends SlayerKit {
             Vec3 c = e.position().add(0, 1.2, 0).add(e.getViewVector(1f).scale(0.8));
             Fx.sparks(L(e), c, 18); Fx.dustBurst(L(e), 0xffd070, 1.2f, c, 10, 0.3); Fx.ring(L(e), c, 1.1f, 0xffe090, 1.4f, 14);
             snd(e, SoundEvents.ANVIL_LAND, 0.9f, 1.9f); snd(e, SoundEvents.IRON_GOLEM_HURT, 0.7f, 1.8f); // clang
-            Combat.knock(a, e.position(), 0.5, 0.1); a.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 2));
-            var ad = a.getPersistentData(); float post = ad.getFloat("w_post") + (perfectWin ? 45 : 28);
+            Combat.knock(a, e.position(), 0.5, 0.1); a.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 2)); d.putLong("w_rise", now + 80); // 下り鯉: posture damage up for 4 s
+            var ad = a.getPersistentData(); float post = ad.getFloat("w_post") + (perfectWin ? 55 : 34); // 登り鯉: stronger deflect posture damage
             if (post >= 100) { // posture broken: stunned, deathblow available
                 ad.putFloat("w_post", 0); ad.putLong("w_stun", now + 90);
                 a.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 90, 6)); a.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 90, 2));
@@ -91,7 +91,7 @@ public class SekiroWolf extends SlayerKit {
     }
 
     private static void guardPosture(SlayerEntity e, net.minecraft.nbt.CompoundTag d, float add) {
-        float p = d.getFloat("w_post") + add;
+        float p = d.getFloat("w_post") + add * 0.75f; // 流水
         if (p >= postCap(e)) { // Wolf's own posture breaks: staggered
             p = 30; e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 4)); snd(e, SoundEvents.GLASS_BREAK, 0.8f, 0.8f);
             Fx.burst(L(e), ParticleTypes.CRIT, e.position().add(0, 2, 0), 14, 0.4, 0.2);
@@ -100,12 +100,32 @@ public class SekiroWolf extends SlayerKit {
     }
 
 
+
+    // ================= ninjutsu (忍殺忍術) & passive skills (常在効果) =================
+    static float reach(SlayerEntity e) { return now(e) < e.getPersistentData().getLong("w_reach") ? 1.5f : 1f; }
+    /** 命の呼吸 / 幹の息吹: every deathblow restores some health and posture and refills an emblem */
+    static void deathblowBoon(SlayerEntity e) {
+        e.heal(e.getMaxHealth() * 0.12f); var d = e.getPersistentData(); d.putFloat("w_post", Math.max(0, d.getFloat("w_post") - 40)); emb(e, 1);
+        Fx.dustBurst(L(e), 0x90ff90, 1f, e.position().add(0, 1.2, 0), 10, 0.4);
+    }
+    /** 派生攻撃・追い斬り / 連ね斬り: a lunging slash straight after a prosthetic tool */
+    static void followUp(SlayerEntity e, LivingEntity t) {
+        if (t == null || !t.isAlive() || e.distanceTo(t) > 7) return;
+        Combat.lunge(e, 0.95, 0.02); slash(e, 85, -85, 15, 0xffffff); artHit(e, 4.2f, 8, 18, 0.8, 0.15, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.1f);
+    }
+    /** 放ち斬り: the tool's power thrown forward off the blade */
+    static void wave(SlayerEntity e, LivingEntity t, int rgb, boolean burn) {
+        Vec3 d = aim(e, t, 0), m = mz(e); Combat.hitscan(e, m, d, 9, 9f, 4, rgb); Fx.beam(L(e), m, m.add(d.scale(8)), rgb, 1.1f, 0.3);
+        if (burn) for (LivingEntity f : Combat.cone(e, 8, 20)) f.setSecondsOnFire(5);
+        snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.7f);
+    }
+
     // ================= progression: prayer beads, attack power, spirit emblems =================
     static int emb(SlayerEntity e) { return e.getPersistentData().getInt("w_emb"); }
     static void emb(SlayerEntity e, int d) { e.getPersistentData().putInt("w_emb", Math.max(0, Math.min(5 + Prog.get(e, "w_rosary"), emb(e) + d))); }
     static float postCap(SlayerEntity e) { return 100 + 25 * Prog.get(e, "w_rosary"); }
     /** gate an art behind spirit emblems (形代) */
-    static AttackDef cost(AttackDef a, int c) { return c <= 0 ? a : a.when((e, t) -> emb(e) >= c).onStart((e, t, n) -> emb(e, -c)); }
+    static AttackDef cost(AttackDef a, int c) { if (c <= 0) return a; var old = a.cond; return a.when((e, t) -> emb(e) >= c && old.test(e, t)).onStart((e, t, n) -> emb(e, -c)); }
 
     /** raise an enemy's posture; breaking it stuns it (deathblow window) */
     static void postDmg(SlayerEntity e, LivingEntity a, float add) {
@@ -119,20 +139,21 @@ public class SekiroWolf extends SlayerKit {
     }
     /** art hit with posture damage */
     static int artHit(SlayerEntity e, double range, float dmg, float post, double kb, double up, int rgb) {
-        int n = 0; for (LivingEntity f : Combat.cone(e, range, 60)) { Combat.damage(e, f, dmg); postDmg(e, f, post); Combat.knock(f, e.position(), kb, up); Fx.dustBurst(L(e), rgb, 1f, mid(f), 6, 0.3); n++; }
+        int n = 0; for (LivingEntity f : Combat.cone(e, range * reach(e), 60)) { Combat.damage(e, f, dmg); postDmg(e, f, post * (now(e) < e.getPersistentData().getLong("w_rise") ? 1.5f : 1f)); Combat.knock(f, e.position(), kb, up); Fx.dustBurst(L(e), rgb, 1f, mid(f), 6, 0.3); n++; }
         return n;
     }
 
     @Override
     public void onKill(SlayerEntity e, LivingEntity v) {
         emb(e, 1); // enemies drop spirit emblems
+        if (Prog.add(e, "w_kills", 1) % 10 == 0) { var dd = e.getPersistentData(); int rc = dd.contains("w_resc") ? dd.getInt("w_resc") : 2; if (rc < 2) { dd.putInt("w_resc", rc + 1); Prog.say(e, "Resurrection power restored", 0xffffff); } }
         if (Prog.strong(v)) { // mini-boss class: a prayer bead; four make a rosary -> vitality + posture
             int beads = Prog.add(e, "w_bead", 1);
             if (beads % 4 == 0) { Prog.add(e, "w_rosary", 1); Prog.growHp(e, 0.12); Prog.say(e, "Prayer Necklace complete! Vitality and posture up", 0xe0c060); }
             else Prog.say(e, "Prayer Bead " + (beads % 4) + "/4", 0xe0c060);
         }
         if (Prog.boss(v)) { // bosses leave a Memory: attack power up, and a gourd seed
-            Prog.growDmg(e, 0.1f); int seeds = Prog.add(e, "w_seed", 1);
+            Prog.growDmg(e, 0.1f); int seeds = Prog.add(e, "w_seed", 1); emb(e, 0); Prog.add(e, "w_rosary", 0);
             Prog.say(e, "Memory gained: Attack Power up (Gourd Seed " + seeds + ")", 0xff8040);
         }
     }
@@ -140,10 +161,28 @@ public class SekiroWolf extends SlayerKit {
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.5f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.4f; p.bodyX += 0.05f; p.lArmX = -0.2f + p.lArmX * 0.5f; }
 
     @Override
-    public void passive(SlayerEntity e) { // Healing Gourd + posture recovery
+    public void passive(SlayerEntity e) { // posture recovery, emblems, water breathing, ninjutsu upkeep, healing gourd
         var d = e.getPersistentData(); if (!d.contains("w_emb")) d.putInt("w_emb", 3); float po = d.getFloat("w_post"); if (po > 0) d.putFloat("w_post", Math.max(0, po - (e.getHealth() / e.getMaxHealth() > 0.5f ? 0.2f : 0.1f)));
+        long now = now(e);
         if (e.tickCount % 500 == 0) emb(e, 1); // slow emblem recovery
-        if (e.tickCount % 400 == 0 && e.getHealth() < e.getMaxHealth() * 0.5f) {
+        if (e.isInWater()) { e.setAirSupply(e.getMaxAirSupply()); } // 水生の呼吸術: breathe underwater
+        // 血煙の術: while the smoke hangs, enemies nearby lose their target
+        if (now < d.getLong("w_smoke") && e.tickCount % 5 == 0) for (LivingEntity f : Combat.around(e, e.position(), 7)) { f.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 30, 0, false, false)); if (f instanceof net.minecraft.world.entity.Mob m && m.getTarget() == e) m.setTarget(null); }
+        // 傀儡の術: puppets fight for us until their time runs out
+        if (e.tickCount % 5 == 0) for (LivingEntity p : e.level().getEntitiesOfClass(LivingEntity.class, e.getBoundingBox().inflate(24), x -> x.getPersistentData().getLong("w_pup") > 0)) {
+            long end = p.getPersistentData().getLong("w_pup");
+            if (now >= end) { p.getPersistentData().putLong("w_pup", 0); Fx.dustBurst(L(e), 0xb02020, 1.4f, p.position().add(0, 1, 0), 20, 0.5); p.setHealth(0.5f); Combat.damage(e, p, 200); snd(e, SoundEvents.SOUL_ESCAPE, 0.8f, 0.6f); continue; }
+            Fx.dustBurst(L(e), 0xa060e0, 1f, p.position().add(0, p.getBbHeight() * 0.8, 0), 3, 0.3);
+            if (p instanceof net.minecraft.world.entity.Mob m && (m.getTarget() == null || m.getTarget() == e || !m.getTarget().isAlive())) {
+                LivingEntity best = null; double bd = 400; for (LivingEntity x : p.level().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(16), x -> x != p && x != e && x.getPersistentData().getLong("w_pup") == 0 && Combat.isFoe(e, x))) { double dd = x.distanceToSqr(p); if (dd < bd) { bd = dd; best = x; } }
+                m.setTarget(best);
+            }
+        }
+        // 傷薬瓢箪: limited charges (3 + gourd seeds, max 10), refilled when the fight is over
+        int cap = Math.min(10, 3 + Prog.get(e, "w_seed")); if (!d.contains("w_gourd")) d.putInt("w_gourd", cap);
+        if (e.tickCount % 40 == 0) { if (Combat.around(e, e.position(), 14).isEmpty()) { int pc = d.getInt("w_peace") + 1; d.putInt("w_peace", pc); if (pc >= 5) d.putInt("w_gourd", cap); } else d.putInt("w_peace", 0); }
+        if (e.tickCount % 20 == 0 && e.getHealth() < e.getMaxHealth() * 0.5f && d.getInt("w_gourd") > 0 && now >= d.getLong("w_gcd")) {
+            d.putInt("w_gourd", d.getInt("w_gourd") - 1); d.putLong("w_gcd", now + 100);
             e.heal(e.getMaxHealth() * (0.3f + 0.04f * Prog.get(e, "w_seed"))); snd(e, SoundEvents.GENERIC_DRINK, 0.8f, 1f); Fx.burst(L(e), ParticleTypes.HAPPY_VILLAGER, e.position().add(0, 1.2, 0), 10, 0.4, 0.05);
         }
     }
@@ -159,13 +198,18 @@ public class SekiroWolf extends SlayerKit {
             case "ashina_cross" -> cost(a, 2); case "spiral_cloud_passage" -> cost(a, 1); case "dragon_flash" -> cost(a, 3); case "nightjar_slash" -> cost(a, 1);
             default -> { }
         }
+        for (AttackDef a : out) switch (a.id) { // 派生攻撃: 追い斬り (shuriken, firecracker, spear), 連ね斬り (axe), 放ち斬り (flame vent)
+            case "shuriken", "firecracker", "loaded_spear", "loaded_axe" -> a.onEnd((e, t, n) -> followUp(e, t));
+            case "flame_vent" -> a.onEnd((e, t, n) -> { wave(e, t, FIRE, true); followUp(e, t); });
+            default -> { }
+        }
         for (AttackDef a : out) if (a.id.equals("kusabimaru")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 5 / 14f), 0, 1f);
     }
 
     private void defineBase(List<AttackDef> out) {
         out.add(AttackDef.of("kusabimaru").range(0, 3.2f).cd(12).weight(3).dur(14).weapon("kusabimaru")
                 .tick((e, t, n) -> {
-                    if (n == 5) { slash(e, 70, -60, 10, 0xffffff); melee(e, 3.3, 7, 0.4, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.4f); }
+                    if (n == 5) { slash(e, 70, -60, 10, 0xffffff); melee(e, reach(e) * 3.3f, 7, 0.4, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.4f); }
                 }).anim((p, t, a) -> swing(p, t, 5 / 14f, 1f)));
 
         // three-hit chain
@@ -173,7 +217,7 @@ public class SekiroWolf extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n == 5 || n == 16 || n == 27) {
                         boolean r = n != 16; Combat.lunge(e, 0.3, 0); slash(e, r ? 70 : -60, r ? -60 : 70, n == 27 ? 60 : 10, 0xffffff);
-                        melee(e, 3.3, n == 27 ? 10 : 5, n == 27 ? 0.9 : 0.2, 0.05, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.2f + n * 0.01f);
+                        melee(e, reach(e) * 3.3f, n == 27 ? 10 : 5, n == 27 ? 0.9 : 0.2, 0.05, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1.2f + n * 0.01f);
                     }
                 }).anim((p, t, a) -> {
                     float s = (float) Math.sin(t * PI * 3f);
@@ -184,7 +228,7 @@ public class SekiroWolf extends SlayerKit {
         out.add(AttackDef.of("ichimonji").range(0, 3.8f).cd(90).weight(2).dur(28).weapon("kusabimaru")
                 .tick((e, t, n) -> {
                     if (n == 4) snd(e, SoundEvents.ARMOR_EQUIP_IRON, 0.8f, 1.4f);
-                    if (n == 14) { Combat.lunge(e, 0.8, 0); slash(e, 90, -90, 0, 0xffffff); melee(e, 3.8, 16, 1.0, 0.25, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.8f); }
+                    if (n == 14) { Combat.lunge(e, 0.8, 0); slash(e, 90, -90, 0, 0xffffff); melee(e, reach(e) * 3.8f, 16, 1.0, 0.25, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.8f); }
                 }).anim((p, t, a) -> {
                     float w = win(t, .1f, .45f) * (1 - win(t, .5f, .55f));
                     p.rArmX = track(t, 0, -0.2f, .4f, -0.6f, .5f, -1.5f, .7f, -1.4f, 1, -0.2f); p.rArmZ = track(t, 0, 0.1f, .4f, 1.1f, .55f, -0.8f, 1, 0.1f);
@@ -194,7 +238,7 @@ public class SekiroWolf extends SlayerKit {
         // Ashina Cross: spinning cross-cut
         out.add(AttackDef.of("ashina_cross").range(0, 3.6f).cd(110).weight(1).dur(30).weapon("kusabimaru")
                 .tick((e, t, n) -> {
-                    if (n == 8 || n == 14) { slash(e, n == 8 ? 80 : -80, n == 8 ? -80 : 80, n == 8 ? 40 : -40, 0xffffff); melee(e, 3.6, 8, 0.5, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.9f); }
+                    if (n == 8 || n == 14) { slash(e, n == 8 ? 80 : -80, n == 8 ? -80 : 80, n == 8 ? 40 : -40, 0xffffff); melee(e, reach(e) * 3.6f, 8, 0.5, 0.1, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.9f); }
                 }).anim((p, t, a) -> { float s = bump(win(t, .15f, .7f)); p.rootYaw += 6.28f * win(t, .2f, .6f); p.rArmX = -1.5f * s; p.rArmZ = 1.2f * s; p.rootY -= 0.5f * s; }));
 
         // Mortal Draw: iaijutsu counter, lunges and cuts
@@ -202,7 +246,7 @@ public class SekiroWolf extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n == 1) e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 14, 4));
                     if (n == 13) { Combat.lunge(e, 1.5, 0); slash(e, 100, -100, 0, GOLD); }
-                    if (n == 15) { melee(e, 4, 20, 1.3, 0.3, GOLD); Fx.ring(L(e), e.position().add(0, 1, 0), 3f, GOLD, 1.6f, 24); snd(e, SoundEvents.GENERIC_EXPLODE, 0.4f, 1.8f); }
+                    if (n == 15) { melee(e, reach(e) * 4f, 20, 1.3, 0.3, GOLD); Fx.ring(L(e), e.position().add(0, 1, 0), 3f, GOLD, 1.6f, 24); snd(e, SoundEvents.GENERIC_EXPLODE, 0.4f, 1.8f); }
                 }).anim((p, t, a) -> {
                     float h = win(t, .1f, .45f) * (1 - win(t, .5f, .55f));
                     p.rArmX = lerp(0.6f * h, -1.5f, win(t, .5f, .6f)) * 1f; p.rArmZ = -0.4f * h; p.bodyY = 0.6f * h - 1.2f * win(t, .5f, .7f) * (1 - win(t, .8f, 1f)); p.rootY -= 1.5f * h; p.lLegX = -0.5f * h; p.rLegX = 0.4f * h;
@@ -223,7 +267,7 @@ public class SekiroWolf extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n >= 2 && n < 8 && t != null) Fx.beam(L(e), e.position().add(0, 1.5, 0), mid(t), 0x907050, 0.3f, 0.3);
                     if (n == 6 && t != null) { Vec3 d = t.position().subtract(e.position()).normalize(); e.setDeltaMovement(d.x * 1.5, 0.35, d.z * 1.5); e.hurtMarked = true; snd(e, SoundEvents.CROSSBOW_SHOOT, 0.8f, 0.7f); }
-                    if (n == 14) { slash(e, 80, -80, 30, 0xffffff); melee(e, 3.6, 10, 0.7, 0.3, 0xffffff); }
+                    if (n == 14) { slash(e, 80, -80, 30, 0xffffff); melee(e, reach(e) * 3.6f, 10, 0.7, 0.3, 0xffffff); }
                 }).anim((p, t, a) -> { float k = bump(win(t, .05f, .45f)); p.lArmX = -2.2f * k; p.lArmZ = -0.2f * k; p.bodyX += 0.3f * win(t, .25f, .6f) * (1 - win(t, .6f, .8f)); p.rArmX = lerp(p.rArmX, -1.4f, win(t, .5f, .6f) * (1 - win(t, .8f, 1f))); }));
 
         // Prosthetic tools
@@ -335,7 +379,7 @@ public class SekiroWolf extends SlayerKit {
                 .tick((e, t, n) -> {
                     if (n == 3) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(f.x * 0.35, 0.95, f.z * 0.35); e.hurtMarked = true; snd(e, SoundEvents.FIREWORK_ROCKET_LAUNCH, 0.5f, 1.8f); }
                     if (n == 13 && t != null) { Vec3 d = t.position().subtract(e.position()).normalize(); e.setDeltaMovement(d.x * 0.9, -1.1, d.z * 0.9); e.hurtMarked = true; }
-                    if (n == 18) { slash(e, 0, 0, -80, 0xffffff); melee(e, 3.8, 14, 0.8, 0.3, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.9f); }
+                    if (n == 18) { slash(e, 0, 0, -80, 0xffffff); melee(e, reach(e) * 3.8f, 14, 0.8, 0.3, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1f, 0.9f); }
                 }).anim((p, t, a) -> {
                     float up = win(t, .08f, .3f) * (1 - win(t, .4f, .5f)), dn = bump(win(t, .42f, .75f));
                     p.rArmX = lerp(p.rArmX, -3.0f, up) - 0.2f * dn; p.lLegX = -0.8f * up; p.rLegX = 0.5f * up; p.bodyX += 0.2f * up + 0.5f * dn; p.rootY += 1.5f * up;
@@ -425,11 +469,44 @@ public class SekiroWolf extends SlayerKit {
                 .tick((e, t, n) -> { if (n == 6) { Vec3 c = e.position().add(0, 1, 0); Fx.burst(L(e), ParticleTypes.LARGE_SMOKE, c, 28, 1.2, 0.04); Fx.burst(L(e), ParticleTypes.CLOUD, c, 18, 1.0, 0.04); e.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 60, 0, false, false)); for (LivingEntity f : Combat.around(e, e.position(), 6)) { f.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 80, 0)); if (f instanceof net.minecraft.world.entity.Mob m) m.setTarget(null); } snd(e, SoundEvents.FIREWORK_ROCKET_BLAST, 0.8f, 0.6f); } })
                 .anim((p, t, a) -> { float c = bump(win(t, .1f, .8f)); p.lArmX = -1.4f * c; p.bodyX += 0.2f * c; p.rootY -= 0.5f * c; }));
 
+
+        // ================= Ninjutsu (忍殺忍術) =================
+        // 傀儡の術 — Puppeteer: after the deathblow the victim rises and fights for us for 8 s (5 emblems)
+        out.add(cost(AttackDef.of("kugutsu").range(0, 3.6f).cd(60).weight(9).dur(34).weapon("kusabimaru")
+                .when((e, t) -> now(e) < t.getPersistentData().getLong("w_stun") && !Prog.boss(t) && emb(e) >= 5 && !Combat.around(e, t.position(), 14).stream().allMatch(x -> x == t))
+                .tick((e, t, n) -> {
+                    if (n == 1 && t != null) { Vec3 back = Vec3.directionFromRotation(0, t.getYRot()).scale(-1.3); e.teleportTo(t.getX() + back.x, t.getY(), t.getZ() + back.z); }
+                    if (t != null) { t.setDeltaMovement(Vec3.ZERO); t.hurtMarked = true; }
+                    if (n == 11 && t != null) {
+                        slash(e, 90, -90, 0, 0xa060e0); Fx.ring(L(e), mid(t), 2f, 0xa060e0, 1.6f, 20); snd(e, SoundEvents.SOUL_ESCAPE, 1f, 0.5f);
+                        var td = t.getPersistentData(); td.putLong("w_stun", 0); td.putLong("w_pup", now(e) + 160);
+                        t.setHealth(1f); t.removeAllEffects(); t.addEffect(new MobEffectInstance(MobEffects.GLOWING, 170, 0, false, false)); t.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 160, 1, false, false));
+                        LivingEntity best = null; double bd = 400; for (LivingEntity x : Combat.around(e, t.position(), 14)) if (x != t) { double dd = x.distanceToSqr(t); if (dd < bd) { bd = dd; best = x; } }
+                        if (t instanceof net.minecraft.world.entity.Mob m) m.setTarget(best);
+                    }
+                }).anim((p, t, a) -> stab(p, t, 11 / 34f)), 5));
+        // 血煙の術 — Bloodsmoke: a red smokescreen; enemies lose track of us (1 emblem)
+        out.add(cost(AttackDef.of("bloodsmoke").range(0, 8).cd(260).weight(1).dur(20).noLos()
+                .tick((e, t, n) -> { if (n == 5) { Vec3 c = e.position().add(0, 1, 0); Fx.dustBurst(L(e), 0x8a0f0f, 2.4f, c, 30, 1.6); Fx.burst(L(e), ParticleTypes.LARGE_SMOKE, c, 20, 1.4, 0.04); e.getPersistentData().putLong("w_smoke", now(e) + 100); e.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 80, 0, false, false)); snd(e, SoundEvents.FIREWORK_ROCKET_BLAST, 0.8f, 0.5f); } })
+                .anim((p, t, a) -> { float c = bump(win(t, .1f, .8f)); p.rArmX = -1.8f * c; p.lArmX = -1.0f * c; p.bodyX += 0.25f * c; p.rootY -= 0.6f * c; }), 1));
+        // 血刀の術 — Bloodblade: a crimson aura lengthens the blade (reach x1.5, also for arts) for 12 s (1 emblem)
+        out.add(cost(AttackDef.of("bloodblade").range(0, 8).cd(300).weight(1).dur(18).noLos().weapon("kusabimaru")
+                .tick((e, t, n) -> { if (n == 6) { e.getPersistentData().putLong("w_reach", now(e) + 240); Fx.dustBurst(L(e), 0xc01818, 1.6f, mz(e), 14, 0.5); Fx.ring(L(e), e.position().add(0, 1, 0), 1.8f, 0xc01818, 1.4f, 18); snd(e, SoundEvents.WITHER_SHOOT, 0.5f, 1.6f); } if (n % 4 == 0) Fx.dustBurst(L(e), 0xc01818, 0.9f, mz(e).add(e.getViewVector(1f).scale(1.2)), 2, 0.2); })
+                .anim((p, t, a) -> KU.strikePose(p, KU.remap(t, 6 / 18f), 0, 0.8f)), 1));
+        // 忍殺 (backstab): an unaware or blinded enemy dies to a stealth deathblow
+        out.add(AttackDef.of("stealth_deathblow").range(0, 3.4f).cd(40).weight(9).dur(22).weapon("kusabimaru")
+                .when((e, t) -> !Prog.boss(t) && ((t instanceof net.minecraft.world.entity.Mob m && m.getTarget() == null) || t.hasEffect(MobEffects.BLINDNESS)))
+                .tick((e, t, n) -> {
+                    if (n == 1 && t != null) { Vec3 back = Vec3.directionFromRotation(0, t.getYRot()).scale(-1.2); e.teleportTo(t.getX() + back.x, t.getY(), t.getZ() + back.z); }
+                    if (n == 9 && t != null) { Fx.dustBurst(L(e), 0xb01010, 1.4f, mid(t), 26, 0.4); slash(e, 80, -80, 0, 0xffffff); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1.2f, 0.6f); Combat.damage(e, t, t.getHealth() + 60); deathblowBoon(e); }
+                }).anim((p, t, a) -> stab(p, t, 9 / 22f)));
+
         // ---------- Deathblow on a posture-broken enemy (kills regular foes, halves bosses) ----------
         out.add(AttackDef.of("posture_deathblow").range(0, 3.6f).cd(30).weight(8).dur(26).weapon("kusabimaru")
                 .when((e, t) -> now(e) < t.getPersistentData().getLong("w_stun"))
                 .tick((e, t, n) -> {
-                    if (n == 2) Combat.lunge(e, 0.9, 0.02);
+                    if (n == 1 && t != null) { Vec3 back = Vec3.directionFromRotation(0, t.getYRot()).scale(-1.3); e.teleportTo(t.getX() + back.x, t.getY(), t.getZ() + back.z); } // 崩し裏回り: step behind the broken foe
+                    if (n == 2) Combat.lunge(e, 0.4, 0.02);
                     if (t != null) { t.setDeltaMovement(Vec3.ZERO); t.hurtMarked = true; }
                     if (n == 11 && t != null) {
                         Fx.dustBurst(L(e), 0xb01010, 1.6f, mid(t), 36, 0.45); slash(e, 90, -90, 0, 0xffffff); Fx.ring(L(e), mid(t), 2f, 0xff3030, 1.6f, 20);
@@ -437,7 +514,7 @@ public class SekiroWolf extends SlayerKit {
                         var td = t.getPersistentData(); td.putLong("w_stun", 0); int marks = td.contains("w_marks") ? td.getInt("w_marks") : (t.getMaxHealth() >= 300 ? 3 : t.getMaxHealth() >= 150 ? 2 : 1);
                         if (marks <= 1) { td.remove("w_marks"); Combat.damage(e, t, t.getHealth() + 60); }
                         else { td.putInt("w_marks", marks - 1); Combat.damage(e, t, t.getMaxHealth() * (0.9f / marks)); if (e.getOwner() != null) e.getOwner().displayClientMessage(Component.literal("Deathblow! " + (marks - 1) + " more"), true); }
-                        emb(e, 1);
+                        deathblowBoon(e);
                     }
                 }).anim((p, t, a) -> stab(p, t, 11 / 26f)));
 
