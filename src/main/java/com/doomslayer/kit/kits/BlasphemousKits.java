@@ -127,6 +127,13 @@ public abstract class BlasphemousKits extends SlayerKit {
             out.add(AttackDef.of("lorquiana").range(2, 10).cd(140).weight(1).dur(30)
                     .tick((e, t, n) -> { if (n == 12) { Combat.shoot(e, BLOODWAVE, mz(e), aim(e, t, 0), 1.2, 12f); Fx.ring(KU.L(e), e.position().add(0, 0.3, 0), 2.5f, BLOOD, 1.5f, 20); snd(e, SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.6f); } })
                     .anim((p, t, a) -> { float k = KU.ready(t, .35f, .8f); p.rArmX = lerp(p.rArmX, -1.55f, k); p.lArmX = lerp(p.lArmX, -1.55f, k); p.rootY -= 0.8f * k; p.rootZ += 1.5f * kick(t, 12 / 30f, .3f); }));
+            // Tiento to Your Thorned Hairs: thorns burst from the ground around the Penitent / Taranto to My Sister: a healing, hardening chant
+            out.add(AttackDef.of("tiento_thorns").range(0, 6).cd(180).weight(1).dur(30)
+                    .tick((e, t, n) -> { if (n == 12) { for (LivingEntity f : Combat.around(e, e.position(), 5.5)) { Combat.damage(e, f, 10); f.addEffect(new MobEffectInstance(MobEffects.POISON, 80, 1)); Combat.knock(f, e.position(), 0.6, 0.5); Fx.burst(KU.L(e), ParticleTypes.CRIT, f.position().add(0, 0.2, 0), 6, 0.2, 0.2); } Fx.ring(KU.L(e), e.position().add(0, 0.2, 0), 5f, BLOOD, 1.6f, 28); Fx.ring(KU.L(e), e.position().add(0, 0.2, 0), 3f, BLOOD, 1.4f, 22); snd(e, SoundEvents.SWEET_BERRY_BUSH_BREAK, 1f, 0.6f); } })
+                    .anim((p, t, a) -> { float k = bump(win(t, .1f, .7f)); p.rArmX = -2.5f * k; p.lArmX = -2.5f * k; p.rootY -= 1.2f * k; p.headX += 0.3f * k; }));
+            out.add(AttackDef.of("taranto_chant").range(0, 12).cd(500).weight(1).dur(40).noLos().when((e, t) -> e.getHealth() < e.getMaxHealth() * 0.7f)
+                    .tick((e, t, n) -> { if (n == 8) { e.heal(e.getMaxHealth() * 0.3f); e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 80, 1)); Fx.aura(KU.L(e), e.position(), 0xf0c060, e.getBbHeight() * 1.2f, e.getBbWidth(), 30); snd(e, SoundEvents.AMETHYST_BLOCK_CHIME, 1f, 0.8f); } })
+                    .anim((p, t, a) -> { float k = ready(t, .2f, .85f); p.rArmX = lerp(p.rArmX, -1.0f, k); p.lArmX = lerp(p.lArmX, -1.0f, k); p.rArmZ = lerp(p.rArmZ, 0.5f, k); p.lArmZ = lerp(p.lArmZ, -0.5f, k); p.headX += 0.25f * k; }));
             out.add(AttackDef.of("verdiales_parry").range(0, 5).cd(160).weight(1).dur(20)
                     .tick((e, t, n) -> { if (n == 1) parryWindow(e, 16); if (n == 6) { Combat.blast(e, e.position(), 3.5f, 6, 1.0f, e); Fx.ring(KU.L(e), e.position().add(0, 1, 0), 2.5f, GOLD, 1.5f, 22); snd(e, SoundEvents.ANVIL_LAND, 0.6f, 1.8f); } })
                     .anim((p, t, a) -> { float k = bump(win(t, .1f, .8f)); p.rArmX = -1.0f * k; p.rArmZ = 0.6f * k; p.bodyX -= 0.15f * k; p.lArmX = -0.6f * k; }));

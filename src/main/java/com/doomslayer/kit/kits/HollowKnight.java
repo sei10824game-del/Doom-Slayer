@@ -114,6 +114,14 @@ public class HollowKnight extends SlayerKit {
                 .tick((e, t, n) -> { if (n >= 6 && n < 30 && n % 4 == 0) { slash(e, 0, 359, 0, 0xffffff); soul(e, melee(e, 3.6, 4, 0.2, 0.1, 0xffffff) * 11); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.7f, 1.4f); } })
                 .anim((p, t, a) -> { p.rootYaw += 6.28f * 3 * win(t, .1f, .85f); p.rArmZ = 1.5f * bump(win(t, .1f, .85f)); p.rArmX = -0.4f; }));
 
+        // Dream Nail: a slow ethereal strike that harvests essence (SOUL) and rattles the foe
+        out.add(AttackDef.of("dream_nail").range(0, 3.4f).cd(120).weight(1).dur(30).weapon("nail")
+                .tick((e, t, n) -> { if (n < 14) Fx.dustBurst(KU.L(e), 0xa0c0ff, 1f, mz(e), 2, 0.3); if (n == 14) { slash(e, 80, -80, 10, 0xa0c0ff); int h = melee(e, 3.5, 4, 0.3, 0.1, 0xa0c0ff); for (LivingEntity f : Combat.cone(e, 3.5, 55)) f.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 80, 1)); soul(e, 33 * h); snd(e, SoundEvents.AMETHYST_BLOCK_RESONATE, 1f, 0.8f); } })
+                .anim((p, t, a) -> KU.strikePose(p, KU.remap(t, 14 / 30f), 0, 1f)));
+        // Crystal Heart: charged super dash, the Knight a streak of crystal
+        out.add(AttackDef.of("crystal_dash").range(4, 14).cd(150).weight(1).dur(34).weapon("nail")
+                .tick((e, t, n) -> { if (n < 14) Fx.dustBurst(KU.L(e), 0xe0a0ff, 1.1f, e.position().add(0, 1, 0), 3, 0.3); if (n == 14) { Combat.lunge(e, 2.2, 0.02); e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 12, 4, false, false)); snd(e, SoundEvents.AMETHYST_BLOCK_BREAK, 1f, 0.7f); } if (n >= 14 && n < 22) { Fx.burst(KU.L(e), ParticleTypes.END_ROD, e.position().add(0, 1, 0), 3, 0.3, 0.02); for (LivingEntity f : Combat.around(e, e.position(), 2.2)) { Combat.damage(e, f, 3); Combat.knock(f, e.position(), 0.6, 0.2); } } })
+                .anim((p, t, a) -> { float c = win(t, .1f, .4f) * (1 - win(t, .75f, 1f)); p.bodyX += 1.1f * c; p.rArmX = lerp(p.rArmX, -1.4f, c); p.lArmX = lerp(p.lArmX, -1.4f, c); p.rootY -= 1.4f * c; }));
         out.add(AttackDef.of("vengeful_spirit").range(3, 18).cd(60).weight(2).dur(20)
                 .tick((e, t, n) -> { if (n == 7) { Combat.shoot(e, FIREBALL, mz(e), aim(e, t, 0), 1.5, 8f); snd(e, SoundEvents.ALLAY_ITEM_GIVEN, 1f, 0.8f); } })
                 .anim((p, t, a) -> { float k = KU.ready(t, .25f, .8f); p.rArmX = lerp(p.rArmX, -1.55f, k); p.lArmX = lerp(p.lArmX, -1.55f, k); p.rootZ += 1.2f * kick(t, 7 / 20f, .3f); }));

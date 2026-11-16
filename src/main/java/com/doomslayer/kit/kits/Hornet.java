@@ -71,6 +71,19 @@ public class Hornet extends SlayerKit {
     }
 
     private void defineAll(List<AttackDef> out) {
+        // Tools (Silksong): Tri Pin, Straight Pin, Caltrops, Flintslate
+        out.add(AttackDef.of("tri_pin").range(3, 16).cd(70).weight(2).dur(18)
+                .tick((e, t, n) -> { if (n == 6) { Vec3 d = aim(e, t, 0); for (int i = -1; i <= 1; i++) Combat.shoot(e, NEEDLE, mz(e), new Vec3(d.x - d.z * 0.13 * i, d.y, d.z + d.x * 0.13 * i).normalize(), 1.8, 5f); snd(e, SoundEvents.TRIDENT_THROW, 0.8f, 2f); } })
+                .anim((p, t, a) -> throwAnim(p, t)));
+        out.add(AttackDef.of("straight_pin").range(3, 18).cd(30).weight(3).dur(12)
+                .tick((e, t, n) -> { if (n == 4) { Combat.shoot(e, SHARPDART, mz(e), aim(e, t, 0), 2.2, 6f); snd(e, SoundEvents.TRIDENT_THROW, 0.7f, 2f); } })
+                .anim((p, t, a) -> throwAnim(p, t)));
+        out.add(AttackDef.of("caltrops").range(2, 9).cd(150).weight(1).dur(20)
+                .tick((e, t, n) -> { if (n == 8) { Vec3 c = t != null ? t.position() : e.position().add(e.getViewVector(1f).scale(3)); for (LivingEntity f : Combat.around(e, c, 3)) { Combat.damage(e, f, 6); f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 3)); Combat.knock(f, c, 0.2, 0.1); } Fx.ring(KU.L(e), c.add(0, 0.1, 0), 3f, 0xc0c0c8, 1.4f, 22); Fx.burst(KU.L(e), ParticleTypes.CRIT, c.add(0, 0.2, 0), 14, 1.0, 0.1); snd(e, SoundEvents.CHAIN_PLACE, 1f, 1.6f); } })
+                .anim((p, t, a) -> throwAnim(p, t)));
+        out.add(AttackDef.of("flintslate").range(2, 12).cd(110).weight(1).dur(22)
+                .tick((e, t, n) -> { if (n == 7) { Vec3 c = t != null ? t.position() : e.position().add(e.getViewVector(1f).scale(4)); for (LivingEntity f : Combat.around(e, c, 3.2)) { Combat.damage(e, f, 8); f.setSecondsOnFire(6); } Fx.explosion(KU.L(e), c.add(0, 0.5, 0), 1.6f); snd(e, SoundEvents.FLINTANDSTEEL_USE, 1f, 0.8f); snd(e, SoundEvents.FIRECHARGE_USE, 0.8f, 1f); } })
+                .anim((p, t, a) -> throwAnim(p, t)));
         out.add(AttackDef.of("needle_slash").range(0, 3.4f).cd(12).weight(3).dur(12).weapon("needle")
                 .tick((e, t, n) -> { if (n == 4) { slash(e, 70, -60, 10, 0xffffff); silk(e, melee(e, 3.5, 6, 0.4, 0.1, RED)); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.8f); } })
                 .anim((p, t, a) -> swing(p, t, 4 / 12f, 1f)));

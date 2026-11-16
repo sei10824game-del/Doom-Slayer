@@ -61,6 +61,7 @@ public abstract class ZeldaKits extends SlayerKit {
     static final ProjStyle ARROW_LIGHT = shot(LIGHT, 0.3f, 50, 6, false, 0, null).shape(ProjStyle.Shape.BOLT);
     static final ProjStyle ARROW_ANCIENT = shot(ANCIENT, 0.3f, 60, 5, false, 0, null).shape(ProjStyle.Shape.BOLT);
     static final ProjStyle ARROW_BOMB = ProjStyle.make().color(0xd05030).size(0.3f).life(60).gravity(0.014).explode(3f).shape(ProjStyle.Shape.DART);
+    static final ProjStyle SPEAR_P = ProjStyle.make().color(0xd8d0b0).size(0.3f).life(30).gravity(0.02).pierce(2).shape(ProjStyle.Shape.DART);
     static final ProjStyle SEED = ProjStyle.make().color(0xb08040).size(0.15f).life(30).gravity(0.02).shape(ProjStyle.Shape.BOLT);
     static final ProjStyle BEAM = shot(0xc8f0ff, 0.5f, 26, 3, false, 0, null).shape(ProjStyle.Shape.BOLT);
     static final ProjStyle BEAM_BIG = shot(LIGHT, 0.8f, 28, 6, false, 0, null).shape(ProjStyle.Shape.BOLT);
@@ -158,11 +159,13 @@ public abstract class ZeldaKits extends SlayerKit {
     }
 
     // ---------- attack factories ----------
+    static final Set<String> TWO_HANDED = Set.of("spear", "greatsword", "axe", "club", "hammer", "biggoron", "ballchain");
     AttackDef base(String id, String w, double min, double max, int cd, int dur, int weight) {
-        return AttackDef.of(id).range((float) min, (float) max).cd(cd).dur(dur).weight(weight).weapons(w, look.noShield || w == null ? null : "shield");
+        return AttackDef.of(id).range((float) min, (float) max).cd(cd).dur(dur).weight(weight).weapons(w, look.noShield || w == null || TWO_HANDED.contains(w) ? null : "shield"); // two-handers leave the shield on the back
     }
-    AttackDef melee(String id, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) {
-        return base(id, "sword", 0, range, cd, dur, weight).tick((e, t, n) -> {
+    AttackDef melee(String id, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) { return meleeW(id, "sword", range, cd, dur, hits, dmg, kb, up, rgb, k, frame, weight); }
+    AttackDef meleeW(String id, String weapon, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) {
+        return base(id, weapon, 0, range, cd, dur, weight).tick((e, t, n) -> {
             for (int i = 0; i < hits.length; i++) if (n == hits[i]) {
                 boolean r = i % 2 == 0; slash(e, r ? 80 : -70, r ? -70 : 80, k == K.OVER ? 60 : (k == K.STAB ? 0 : 10 + 12 * i), rgb); KU.melee(e, range + 0.1, dmg, kb, up, rgb); snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.9f, 1.3f + 0.05f * i);
                 if (i == 0 && k == K.DASH) Combat.lunge(e, 1.0, 0);
@@ -207,8 +210,6 @@ public abstract class ZeldaKits extends SlayerKit {
             case "overhead": return melee(id, 3.3, 40, 22, new int[] {9}, 10, 0.8, 0.3, 0xffffff, K.OVER, 9 / 22f, 2);
             case "rock_breaker": return melee(id, 3.6, 90, 30, new int[] {14}, 16, 1.0, 0.4, 0xc0a070, K.OVER, 14 / 30f, 1);
             case "dash_attack": return melee(id, 3.6, 60, 20, new int[] {8}, 9, 0.8, 0.15, 0xffffff, K.DASH, 0, 2).onStart((e, t, n) -> Combat.lunge(e, 1.0, 0.02));
-            case "greatsword_smash": return melee(id, 3.8, 70, 30, new int[] {14}, 15, 1.2, 0.4, 0xffffff, K.SLAM, 14 / 30f, 2);
-            case "spear_thrust": return melee(id, 4.4, 24, 20, new int[] {8}, 8, 0.7, 0.1, 0xffffff, K.STAB, 8 / 20f, 3);
             case "rapier_flurry": return melee(id, 3.4, 50, 34, new int[] {5, 9, 13, 17, 21, 25}, 3.2f, 0.1, 0.05, 0xffffff, K.COMBO, 0, 3);
             case "wolf_bite": return melee(id, 2.8, 30, 22, new int[] {4, 9, 14}, 4.5f, 0.3, 0.1, 0xff4040, K.COMBO, 0, 3);
             case "mortal_draw": return melee(id, 4, 160, 26, new int[] {14}, 20, 1.3, 0.3, 0xffd070, K.DASH, 0, 1).onStart((e, t, n) -> Combat.lunge(e, 0.2, 0));
@@ -235,6 +236,37 @@ public abstract class ZeldaKits extends SlayerKit {
                     if (n == 12 || (big && n == 16)) { slash(e, 359, 0, 0, 0xffffff); for (LivingEntity f : Combat.around(e, e.position().add(0, 1, 0), big ? 4.2 : 3.6)) { Combat.damage(e, f, big ? 12 : 8); Combat.knock(f, e.position(), 0.9, 0.25); Fx.sparks(L(e), mid(f), 5); } snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.9f); }
                 }).anim((p, t, a) -> { float c = win(t, .05f, .35f) * (1 - win(t, .8f, 1f)); p.rootYaw += 6.28f * (big ? 2 : 1) * win(t, .35f, .8f); p.rArmZ = 1.4f * c; p.lArmZ = -1.1f * c; p.rArmX = -0.3f; p.rootY -= 0.6f * c; });
             }
+            // ---- weapon types (BotW / TotK / Warriors): spears, two-handed swords, axes, clubs ----
+            case "spear_thrust": return meleeW(id, "spear", 4.6, 24, 20, new int[] {8}, 8, 0.7, 0.1, 0xffffff, K.STAB, 8 / 20f, 3);
+            case "spear_combo": return meleeW(id, "spear", 4.6, 50, 30, new int[] {7, 14, 21}, 6, 0.4, 0.1, 0xffffff, K.STAB, 0, 3);
+            case "spear_sweep": return meleeW(id, "spear", 4.6, 70, 24, new int[] {10}, 9, 1.0, 0.3, 0xffffff, K.SLASH, 10 / 24f, 2);
+            case "spear_throw": return proj(id, "spear", 5, 22, 100, 22, 8, 1, 0, SPEAR_P, 1.9, 14, K.THROW, SoundEvents.TRIDENT_THROW, 1f);
+            case "greatsword_smash": return meleeW(id, "greatsword", 4.0, 70, 32, new int[] {16}, 17, 1.2, 0.4, 0xffffff, K.OVER, 16 / 32f, 2);
+            case "greatsword_combo": return meleeW(id, "greatsword", 4.0, 80, 40, new int[] {9, 23}, 11, 0.9, 0.2, 0xffffff, K.COMBO, 0, 3);
+            case "greatsword_spin": return base(id, "greatsword", 0, 4.4, 120, 36, 2).tick((e, t, n) -> {
+                if (n == 12 || n == 20) { slash(e, 359, 0, 0, 0xffffff); for (LivingEntity f : Combat.around(e, e.position().add(0, 1, 0), 4.4)) { Combat.damage(e, f, n == 20 ? 13 : 9); Combat.knock(f, e.position(), n == 20 ? 1.4 : 0.6, 0.3); Fx.sparks(L(e), mid(f), 5); } snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.6f); }
+            }).anim((p, t, a) -> { float c = win(t, .05f, .35f) * (1 - win(t, .8f, 1f)); p.rootYaw += 6.28f * 2 * win(t, .3f, .75f); p.rArmZ = 1.3f * c; p.lArmZ = -1.3f * c; p.rArmX = -0.8f; p.lArmX = -0.8f; p.rootY -= 0.9f * c; });
+            case "biggoron_smash": return meleeW(id, "biggoron", 4.2, 90, 36, new int[] {18}, 22, 1.5, 0.5, 0xffffff, K.OVER, 18 / 36f, 1);
+            case "axe_chop": return meleeW(id, "axe", 3.6, 40, 24, new int[] {10}, 11, 0.8, 0.2, 0xd0b080, K.OVER, 10 / 24f, 2);
+            case "axe_spin": return meleeW(id, "axe", 3.8, 90, 28, new int[] {10, 16}, 7, 0.7, 0.1, 0xd0b080, K.SLASH, 10 / 28f, 1);
+            case "club_smash": return meleeW(id, "club", 3.6, 60, 28, new int[] {14}, 13, 1.1, 0.4, 0xa07040, K.OVER, 14 / 28f, 2);
+            case "deku_stick": return meleeW(id, "dekustick", 3.2, 24, 18, new int[] {7}, 5, 0.4, 0.1, FIRE, K.SLASH, 7 / 18f, 2);
+            case "back_slice": return base(id, "sword", 0, 3.4, 90, 22, 2).tick((e, t, n) -> { if (n == 3) { Vec3 f = e.getViewVector(1f); e.setDeltaMovement(-f.x * 0.5, 0.3, -f.z * 0.5); e.hurtMarked = true; } if (n == 11) { slash(e, 359, 0, 0, 0xffffff); KU.melee(e, 3.6, 12, 0.8, 0.2, 0xffffff); } }).anim(anim(K.SPIN, 0, 1));
+            case "spinner": return melee(id, 3.6, 110, 26, new int[] {8, 12, 16}, 6, 0.6, 0.1, 0xc0c0d0, K.DASH, 0, 1).onStart((e, t, n) -> Combat.lunge(e, 1.3, 0));
+            case "deku_nut": return aoe(id, "none", 0, 8, 160, 18, 7, 5, 1, 0.1, 0xfff8a0, K.THROW, (e, f) -> { f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 80, 5)); f.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 60, 0)); }, true);
+            case "magic_powder": return aoe(id, "none", 1, 7, 140, 22, 9, 3.6, 3, 0.1, 0xd0a0ff, K.CAST, (e, f) -> { f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 6)); f.setSecondsOnFire(3); }, true);
+            case "sun_song": return aoe(id, "none", 0, 9, 360, 34, 18, 7, 0, 0, 0xffe070, K.CAST, (e, f) -> { f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 140, 9)); f.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 140, 1)); }, false);
+            case "life_spell": return base(id, "none", 0, 12, 500, 30, 1).noLos().when((e, t) -> e.getHealth() < e.getMaxHealth() * 0.6f).tick((e, t, n) -> { if (n == 10) { e.heal(e.getMaxHealth() * 0.4f); Fx.dustBurst(L(e), 0xff8080, 1.4f, e.position().add(0, 1.1, 0), 24, 0.6); snd(e, SoundEvents.AMETHYST_BLOCK_CHIME, 1f, 1.5f); } }).anim(anim(K.CAST, .5f, 1));
+            case "deku_leaf": return aoe(id, "none", 0, 7, 100, 24, 10, 5.2, 4, 2.4, WIND, K.CAST, null, false);
+            case "pacci_cane": return base(id, "rod", 2, 10, 100, 24, 2).tick((e, t, n) -> { if (n == 9 && t != null) { for (LivingEntity f : Combat.around(e, t.position(), 2.5)) { Combat.damage(e, f, 6); f.setDeltaMovement(0, 1.0, 0); f.hurtMarked = true; } Fx.ring(L(e), t.position().add(0, 0.2, 0), 2f, 0xffa0ff, 1.5f, 18); snd(e, SoundEvents.SLIME_JUMP, 1f, 1.6f); } }).anim(anim(K.CAST, 9 / 24f, 1));
+            case "mole_dig": return base(id, "none", 3, 12, 120, 26, 2).tick((e, t, n) -> { if (n == 2) { e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 14, 4, false, false)); e.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 14, 0, false, false)); Combat.lunge(e, 1.0, 0); } if (n < 12) Fx.burst(L(e), ParticleTypes.POOF, e.position().add(0, 0.1, 0), 3, 0.3, 0.02); if (n == 14) { for (LivingEntity f : Combat.around(e, e.position(), 3)) { Combat.damage(e, f, 9); f.setDeltaMovement(0, 0.8, 0); f.hurtMarked = true; } Fx.ring(L(e), e.position().add(0, 0.2, 0), 2.4f, 0x806040, 1.5f, 20); } }).anim(anim(K.DASH, 0, 1));
+            case "revali_gale": return base(id, "none", 0, 8, 420, 30, 1).tick((e, t, n) -> { if (n == 8) { e.setDeltaMovement(0, 1.1, 0); e.hurtMarked = true; for (LivingEntity f : Combat.around(e, e.position(), 5)) { f.setDeltaMovement(0, 1.2, 0); f.hurtMarked = true; Combat.damage(e, f, 5); } Fx.ring(L(e), e.position().add(0, 0.3, 0), 3.5f, 0x80f0c0, 1.6f, 24); snd(e, SoundEvents.ELYTRA_FLYING, 1f, 1.4f); } if (n > 8 && n < 24) Fx.burst(L(e), ParticleTypes.CLOUD, e.position().add(0, 0.2, 0), 2, 0.4, 0.05); }).anim(anim(K.CAST, 8 / 30f, 1));
+            case "sage_yunobo": return melee(id, 3.8, 160, 30, new int[] {8, 14, 20}, 8, 1.0, 0.25, 0xc08040, K.DASH, 0, 1).onStart((e, t, n) -> Combat.lunge(e, 1.6, 0));
+            case "sage_mineru": return base(id, "none", 4, 22, 200, 30, 1).tick((e, t, n) -> { if (n == 14) { Vec3 d = aim(e, t, 0), m = mz(e); Combat.hitscan(e, m, d, 24, 22f, 5, 0x60ffa0); Fx.beam(L(e), m, m.add(d.scale(20)), 0x60ffa0, 1.4f, 0.3); Fx.flash(L(e), m.add(d.scale(1.5)), 0xa0ffd0, 1f); snd(e, SoundEvents.IRON_GOLEM_ATTACK, 1f, 0.7f); } }).anim(anim(K.CAST, 14 / 30f, 1));
+            case "echo_sword_moblin": return base(id, "spear", 2, 10, 90, 24, 2).tick((e, t, n) -> { if (n == 9) { Vec3 d = aim(e, t, 0), m = mz(e); Combat.hitscan(e, m, d, 9, 11f, 3, 0xd8c8a0); Fx.beam(L(e), m, m.add(d.scale(8)), 0xd8c8a0, 0.9f, 0.3); Combat.lunge(e, 0.5, 0); snd(e, SoundEvents.TRIDENT_THROW, 1f, 0.9f); } }).anim(anim(K.STAB, 9 / 24f, 1));
+            case "echo_fire_wizzrobe": return proj(id, "wand", 3, 18, 80, 24, 9, 1, 0, FIREBALL, 1.0, 9, K.CAST, SoundEvents.BLAZE_SHOOT, 1.1f);
+            case "echo_ice_wizzrobe": return proj(id, "wand", 3, 18, 80, 24, 9, 1, 0, ICEBALL, 1.0, 6, K.CAST, SoundEvents.SNOW_GOLEM_SHOOT, 0.9f);
+            case "swordfighter_form": return base(id, "sword", 0, 8, 420, 36, 1).noLos().tick((e, t, n) -> { if (n == 6) { e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 300, 1)); e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 300, 1)); Fx.aura(L(e), e.position(), 0xffe090, 2f, 0.9f, 24); snd(e, SoundEvents.BEACON_ACTIVATE, 0.8f, 1.8f); } if (n == 20) { Combat.shoot(e, BEAM_BIG, mz(e), aim(e, t, 0), 1.8, 12f); } }).anim(anim(K.SLASH, 20 / 36f, 1));
             case "hammer_slam": return aoe(id, "hammer", 0, 5, 100, 32, 18, 4.2, 14, 1.4, 0xc0a070, K.SLAM, (e, f) -> f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 3)), false);
             case "iron_stomp": return aoe(id, "sword", 0, 4, 80, 22, 10, 3.5, 8, 0.8, 0x808080, K.SLAM, (e, f) -> f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 5)), false);
             case "ball_chain": return aoe(id, "ballchain", 0, 5, 120, 36, 20, 4.8, 13, 1.3, 0x909090, K.SPIN, null, false);
@@ -484,6 +516,12 @@ public abstract class ZeldaKits extends SlayerKit {
                 case "slate" -> { w = rig.weapon(rig.rHand, "slate"); rig.box(w, Mat.of(0x303840).bevel(.15f), -3, -2, -6, 6, 1, 8); rig.box(w, Mat.of(SHEIK).glow(), -2, -2.6f, -5, 4, 1, 6); rig.box(w, Mat.of(0xe0a020).glow(), -0.5f, -3, -2, 1, 1, 1); }
                 case "jar" -> { w = rig.weapon(rig.rHand, "jar"); rig.box(w, Mat.of(0x70b050).bevel(.2f), -2.5f, -4, -6, 5, 5, 5); rig.box(w, metal, -1, -3, -10, 2, 2, 4); rig.box(w, Mat.of(0x806030), -1.5f, -6, -5, 3, 2, 3); }
                 case "ballchain" -> { w = rig.weapon(rig.rHand, "ballchain"); rig.box(w, metal, -0.5f, -2.5f, -9, 1, 1, 8); rig.box(w, Mat.of(0x505058).bevel(.2f), -3, -5, -14, 6, 6, 6, .2f); }
+                case "spear" -> { w = rig.weapon(rig.rHand, "spear"); rig.box(w, wood, -0.5f, -2.5f, -24, 1, 1, 30); rig.box(w, steel, -1, -3, -28, 2, 2, 5); rig.box(w, steel, -0.5f, -2.5f, -31, 1, 1, 3); rig.box(w, Mat.of(0xb03030), -1, -3, -22, 2, 2, 1); }
+                case "greatsword" -> { w = rig.weapon(rig.rHand, "greatsword"); rig.box(w, steel, -1.5f, -3, -26, 3, 2, 23); rig.box(w, Mat.of(look.blade == 0xdce4f0 ? 0xa8c8f0 : look.blade).glow(), -0.5f, -2.6f, -26, 1, 1, 22); rig.box(w, gold, -4, -3.5f, -3, 8, 2, 1); rig.box(w, hilt, -0.5f, -3, -2, 1, 2, 7); }
+                case "biggoron" -> { w = rig.weapon(rig.rHand, "biggoron"); rig.box(w, steel, -2.5f, -3.5f, -30, 5, 3, 27); rig.box(w, Mat.of(0xf0e0b0).glow(), -1, -3, -30, 2, 1, 26); rig.box(w, gold, -5, -4, -3, 10, 2, 1); rig.box(w, hilt, -0.5f, -3, -2, 1, 2, 8); }
+                case "axe" -> { w = rig.weapon(rig.rHand, "axe"); rig.box(w, wood, -0.5f, -2.5f, -16, 1, 1, 18); rig.box(w, metal, -1, -6, -19, 2, 7, 5, .1f); rig.box(w, steel, -0.5f, -7, -19.5f, 1, 2, 6); }
+                case "club" -> { w = rig.weapon(rig.rHand, "club"); rig.box(w, wood, -0.5f, -2.5f, -12, 1, 1, 14); rig.box(w, Mat.of(0x8a6a3a).noise(.2f), -2.5f, -5, -18, 5, 5, 8, .2f); rig.box(w, metal, -3, -6, -15, 1, 1, 1); rig.box(w, metal, 2, -3, -15, 1, 1, 1); }
+                case "dekustick" -> { w = rig.weapon(rig.rHand, "dekustick"); rig.box(w, Mat.of(0x9a7a4a).noise(.2f), -0.5f, -2.5f, -12, 1, 1, 12); rig.box(w, Mat.of(0xff7020).glow(), -1, -3, -14, 2, 2, 2); }
                 case "none" -> { /* no weapon */ }
                 default -> { /* shared names handled above */ }
             }
@@ -495,15 +533,15 @@ public abstract class ZeldaKits extends SlayerKit {
     public static class LoZ extends ZeldaKits { public LoZ() { super("zelda_loz_link", "Link (The Legend of Zelda)", "リンク (ゼルダの伝説)", "The Legend of Zelda", link().tunic(0x40a040).shield(0xa03030, 0xe0e0e0), 90, 0.32, 1f, 1,
             "sword_slash", "sword_beam", "sword_stab", "boomerang", "bow_arrow", "bomb", "candle_fire", "shield_bash", "dodge"); } }
     public static class ZeldaII extends ZeldaKits { public ZeldaII() { super("zelda2_link", "Link (Zelda II)", "リンク (リンクの冒険)", "Zelda II: The Adventure of Link", link().tunic(0x4aa04a).shield(0xc06020, 0xe0e0e0), 95, 0.32, 1f, 1,
-            "sword_combo", "downthrust", "upthrust", "fire_spell", "thunder_spell", "sword_beam", "guard_parry", "jump_slash"); } }
+            "sword_combo", "downthrust", "upthrust", "fire_spell", "thunder_spell", "sword_beam", "guard_parry", "jump_slash", "life_spell"); } }
     public static class ALttP extends ZeldaKits { public ALttP() { super("zelda_alttp_link", "Link (A Link to the Past)", "リンク (神々のトライフォース)", "A Link to the Past", link().tunic(0x3aa03a).hair(0xd05080).shield(0x3050c0, 0xe0e0e0), 100, 0.33, 1f, 2,
             "sword_combo", "spin_attack", "sword_beam", "bow_arrow", "bomb", "boomerang", "hookshot", "hammer_slam", "fire_rod", "ice_rod", "bombos", "ether", "quake", "cane_somaria", "magic_cape", "guard_parry", "dash_attack"); } }
     public static class LinksAwakening extends ZeldaKits { public LinksAwakening() { super("zelda_la_link", "Link (Link's Awakening)", "リンク (夢をみる島)", "Link's Awakening", link().tunic(0x3aa03a).shield(0x3050c0, 0xe0e0e0), 100, 0.33, 0.95f, 1,
-            "sword_combo", "spin_attack", "jump_slash", "pegasus_dash", "bow_arrow", "bomb", "boomerang", "hookshot", "fire_rod", "shield_bash", "guard_parry", "dodge"); } }
+            "sword_combo", "spin_attack", "jump_slash", "pegasus_dash", "bow_arrow", "bomb", "boomerang", "hookshot", "fire_rod", "shield_bash", "guard_parry", "dodge", "magic_powder"); } }
     public static class OoTAdult extends ZeldaKits { public OoTAdult() { super("zelda_oot_link", "Link (Ocarina of Time, Adult)", "リンク (時のオカリナ・大人)", "Ocarina of Time", link().tunic(0x2f9a3a).shield(0xc03030, 0xe0e0e0), 110, 0.33, 1.05f, 2,
-            "sword_combo", "spin_attack", "great_spin", "jump_slash", "ending_blow", "bow_arrow", "bow_fire", "bow_ice", "bow_light", "hookshot", "hammer_slam", "bomb", "bombchu", "din_fire", "farore_wind", "nayru_love", "iron_stomp", "guard_parry", "backflip", "sidehop"); } }
+            "sword_combo", "spin_attack", "great_spin", "jump_slash", "ending_blow", "bow_arrow", "bow_fire", "bow_ice", "bow_light", "hookshot", "hammer_slam", "bomb", "bombchu", "din_fire", "farore_wind", "nayru_love", "iron_stomp", "guard_parry", "backflip", "sidehop", "biggoron_smash", "deku_nut", "sun_song"); } }
     public static class OoTChild extends ZeldaKits { public OoTChild() { super("zelda_oot_young_link", "Young Link (Ocarina of Time)", "こどもリンク (時のオカリナ)", "Ocarina of Time", link().tunic(0x2f9a3a).shield(0xc03030, 0xe0e0e0), 70, 0.31, 0.7f, 1,
-            "sword_combo", "spin_attack", "jump_slash", "slingshot", "boomerang", "bomb", "bombchu", "shield_bash", "guard_parry", "backflip", "sidehop"); } }
+            "sword_combo", "spin_attack", "jump_slash", "slingshot", "boomerang", "bomb", "bombchu", "shield_bash", "guard_parry", "backflip", "sidehop", "deku_stick", "deku_nut", "sun_song"); } }
     public static class MajoraMask extends ZeldaKits { public MajoraMask() { super("zelda_mm_link", "Link (Majora's Mask)", "リンク (ムジュラの仮面)", "Majora's Mask", link().tunic(0x2f9a3a).shield(0x3050c0, 0xe0e0e0), 100, 0.33, 0.9f, 2,
             "sword_combo", "spin_attack", "jump_slash", "bow_arrow", "bomb", "deku_bubble", "deku_spin", "goron_roll", "goron_pound", "zora_fins", "zora_barrier", "fierce_beam", "guard_parry", "backflip"); } }
     public static class Oracle extends ZeldaKits { public Oracle() { super("zelda_oracle_link", "Link (Oracle of Seasons/Ages)", "リンク (ふしぎの木の実)", "Oracle of Seasons / Ages", link().tunic(0x35a035).shield(0x3050c0, 0xe0e0e0), 100, 0.33, 0.95f, 1,
@@ -511,11 +549,11 @@ public abstract class ZeldaKits extends SlayerKit {
     public static class FourSwords extends ZeldaKits { public FourSwords() { super("zelda_fs_link", "Link (Four Swords)", "リンク (4つの剣)", "The Four Swords", link().tunic(0x40c040).shield(0x3050c0, 0xe0e0e0), 95, 0.34, 0.85f, 1,
             "sword_combo", "spin_attack", "four_formation", "doppelganger", "sword_beam", "bomb", "bow_arrow", "fire_rod", "gust_jar", "dash_attack"); } }
     public static class WindWaker extends ZeldaKits { public WindWaker() { super("zelda_ww_link", "Toon Link (The Wind Waker)", "トゥーンリンク (風のタクト)", "The Wind Waker", link().tunic(0x4ab040).big().shield(0xc04040, 0xe0e0e0), 100, 0.34, 0.9f, 1,
-            "sword_combo", "spin_attack", "jump_slash", "ending_blow", "dodge", "backflip", "guard_parry", "bow_arrow", "boomerang", "hookshot", "bomb", "hammer_slam", "tornado_rod", "bow_light", "shield_bash"); } }
+            "sword_combo", "spin_attack", "jump_slash", "ending_blow", "dodge", "backflip", "guard_parry", "bow_arrow", "boomerang", "hookshot", "bomb", "hammer_slam", "tornado_rod", "bow_light", "shield_bash", "deku_leaf", "deku_stick", "deku_nut"); } }
     public static class MinishCap extends ZeldaKits { public MinishCap() { super("zelda_mc_link", "Link (The Minish Cap)", "リンク (ふしぎのぼうし)", "The Minish Cap", link().tunic(0x45b045).big().shield(0x3050c0, 0xe0e0e0), 95, 0.33, 0.85f, 1,
-            "sword_combo", "spin_attack", "great_spin", "rock_breaker", "dash_attack", "gust_jar", "minish_shrink", "bomb", "bow_arrow", "boomerang", "sword_beam", "guard_parry"); } }
+            "sword_combo", "spin_attack", "great_spin", "rock_breaker", "dash_attack", "gust_jar", "minish_shrink", "bomb", "bow_arrow", "boomerang", "sword_beam", "guard_parry", "pacci_cane", "mole_dig", "deku_stick"); } }
     public static class TwilightPrincess extends ZeldaKits { public TwilightPrincess() { super("zelda_tp_link", "Link (Twilight Princess)", "リンク (トワイライトプリンセス)", "Twilight Princess", link().tunic(0x3a9a3a).hair(0x8a6030).shield(0x3050c0, 0xe0e0e0), 110, 0.33, 1.05f, 2,
-            "sword_combo", "spin_attack", "great_spin", "ending_blow", "helm_splitter", "mortal_draw", "shield_bash", "guard_parry", "bow_arrow", "gale_boomerang", "clawshot", "bomb", "ball_chain", "iron_stomp", "dash_attack", "backflip", "sidehop"); } }
+            "sword_combo", "spin_attack", "great_spin", "ending_blow", "helm_splitter", "mortal_draw", "shield_bash", "guard_parry", "bow_arrow", "gale_boomerang", "clawshot", "bomb", "ball_chain", "iron_stomp", "dash_attack", "backflip", "sidehop", "back_slice", "spinner", "deku_nut"); } }
     public static class WolfLink extends ZeldaKits { public WolfLink() { super("zelda_tp_wolf_link", "Wolf Link (Twilight Princess)", "ウルフリンク (トワイライトプリンセス)", "Twilight Princess", new Look().wolf().tunic(0x6a6a72), 100, 0.4, 1.0f, 1,
             "wolf_bite", "wolf_pounce", "midna_wolf_dash", "midna_blast", "howl", "dodge"); } }
     public static class PhantomHourglass extends ZeldaKits { public PhantomHourglass() { super("zelda_ph_link", "Link (Phantom Hourglass)", "リンク (夢幻の砂時計)", "Phantom Hourglass", link().tunic(0x40a840).big().shield(0xc04040, 0xe0e0e0), 90, 0.33, 0.9f, 1,
@@ -531,11 +569,11 @@ public abstract class ZeldaKits extends SlayerKit {
     public static class TriForceHeroes extends ZeldaKits { public TriForceHeroes() { super("zelda_tfh_link", "Link (Tri Force Heroes)", "リンク (トライフォース英雄伝説)", "Tri Force Heroes", link().tunic(0x40c040).shield(0x3050c0, 0xe0e0e0), 85, 0.34, 0.85f, 1,
             "sword_combo", "spin_attack", "sword_beam", "fire_gloves", "water_rod", "gust_jar", "clawshot", "bomb", "boomerang", "bow_arrow", "hammer_slam", "doppelganger"); } }
     public static class BotW extends ZeldaKits { public BotW() { super("zelda_botw_link", "Link (Breath of the Wild)", "リンク (ブレス オブ ザ ワイルド)", "Breath of the Wild", new Look().tunic(0x4a70c0).under(0xe0d8c0).hair(0xd0b060).hat(0x4a70c0).hatless().blade(0xe8f0ff, 0x3060c0).shield(0x3050c0, 0xe0e0e0), 120, 0.35, 1.0f, 3,
-            "sword_combo", "spear_thrust", "greatsword_smash", "master_beam", "perfect_guard", "dodge", "backflip", "flurry_rush", "bow_arrow", "bow_fire", "bow_ice", "bow_shock", "bow_multi", "bow_ancient", "bomb", "stasis", "magnesis", "cryonis", "daruk_protection", "urbosa_fury", "dash_attack", "sword_stab"); } }
+            "sword_combo", "spear_thrust", "greatsword_smash", "master_beam", "perfect_guard", "dodge", "backflip", "flurry_rush", "bow_arrow", "bow_fire", "bow_ice", "bow_shock", "bow_multi", "bow_ancient", "bomb", "stasis", "magnesis", "cryonis", "daruk_protection", "urbosa_fury", "dash_attack", "sword_stab", "spear_combo", "spear_sweep", "spear_throw", "greatsword_combo", "greatsword_spin", "axe_chop", "axe_spin", "club_smash", "revali_gale"); } }
     public static class TotK extends ZeldaKits { public TotK() { super("zelda_totk_link", "Link (Tears of the Kingdom)", "リンク (ティアーズ オブ ザ キングダム)", "Tears of the Kingdom", new Look().tunic(0x3f78c0).under(0xe0d8c0).hair(0xc8b060).hat(0x3f78c0).hatless().blade(0xe8f0ff, 0x3060c0).shield(0x3050c0, 0xe0e0e0), 125, 0.35, 1.0f, 3,
-            "sword_combo", "spear_thrust", "greatsword_smash", "fuse_slam", "master_beam", "perfect_guard", "dodge", "flurry_rush", "bow_arrow", "bow_fire", "bow_ice", "bow_shock", "bow_multi", "bow_bomb", "ultrahand_throw", "recall", "ascend", "zonai_beam", "zonai_flame", "rocket_dash", "sage_tulin", "sage_riju", "sage_sidon", "bomb"); } }
+            "sword_combo", "spear_thrust", "greatsword_smash", "fuse_slam", "master_beam", "perfect_guard", "dodge", "flurry_rush", "bow_arrow", "bow_fire", "bow_ice", "bow_shock", "bow_multi", "bow_bomb", "ultrahand_throw", "recall", "ascend", "zonai_beam", "zonai_flame", "rocket_dash", "sage_tulin", "sage_riju", "sage_sidon", "bomb", "spear_combo", "spear_sweep", "spear_throw", "greatsword_combo", "greatsword_spin", "axe_chop", "club_smash", "sage_yunobo", "sage_mineru"); } }
     public static class EchoesZelda extends ZeldaKits { public EchoesZelda() { super("zelda_eow_zelda", "Zelda (Echoes of Wisdom)", "ゼルダ (知恵のかりもの)", "Echoes of Wisdom", new Look().dress().tunic(0x6a4a90).hair(0xc8a050).under(0xf0e0d0), 85, 0.31, 0.98f, 2,
-            "sword_combo", "dash_attack", "echo_boulder", "echo_fire_keese", "echo_tornado", "bind", "light_burst", "magic_shot", "dodge", "echo_octorok"); } }
+            "sword_combo", "dash_attack", "echo_boulder", "echo_fire_keese", "echo_tornado", "bind", "light_burst", "magic_shot", "dodge", "echo_octorok", "echo_sword_moblin", "echo_fire_wizzrobe", "echo_ice_wizzrobe", "swordfighter_form"); } }
     public static class HwLink extends ZeldaKits { public HwLink() { super("zelda_hw_link", "Link (Hyrule Warriors)", "リンク (ゼルダ無双)", "Hyrule Warriors", link().tunic(0x3aa03a).shield(0x3050c0, 0xe0e0e0), 140, 0.34, 1f, 1,
             "sword_combo", "spin_attack", "sword_beam", "jump_slash", "boomerang", "bomb", "bow_light", "hookshot", "great_fairy", "musou", "guard_parry", "dodge"); } }
     public static class HwZelda extends ZeldaKits { public HwZelda() { super("zelda_hw_zelda", "Zelda (Hyrule Warriors)", "ゼルダ (ゼルダ無双)", "Hyrule Warriors", new Look().dress().tunic(0xe8e0f0).hair(0xc09040).under(0xd0a0e0), 110, 0.33, 0.98f, 1,
@@ -547,7 +585,7 @@ public abstract class ZeldaKits extends SlayerKit {
     public static class HwLinkle extends ZeldaKits { public HwLinkle() { super("zelda_hw_linkle", "Linkle (Hyrule Warriors)", "リンクル (ゼルダ無双)", "Hyrule Warriors", new Look().tunic(0x3a9a3a).hair(0x6a3a1a).under(0xe0d0b0).noShield().hatless(), 110, 0.35, 0.95f, 1,
             "crossbow_burst", "bow_bomb", "sword_combo", "spin_attack", "dash_attack", "bomb", "musou", "dodge", "backflip"); } }
     public static class AocLink extends ZeldaKits { public AocLink() { super("zelda_aoc_link", "Link (Age of Calamity)", "リンク (ゼルダ無双 厄災の黙示録)", "Age of Calamity", new Look().tunic(0x4a70c0).under(0xe0d8c0).hair(0xd0b060).hatless().blade(0xe8f0ff, 0x3060c0).shield(0x3050c0, 0xe0e0e0), 140, 0.35, 1f, 2,
-            "sword_combo", "spear_thrust", "greatsword_smash", "master_beam", "perfect_guard", "flurry_rush", "dodge", "bow_ancient", "stasis", "magnesis", "cryonis", "bomb", "ancient_blast", "musou"); } }
+            "sword_combo", "spear_thrust", "greatsword_smash", "master_beam", "perfect_guard", "flurry_rush", "dodge", "bow_ancient", "stasis", "magnesis", "cryonis", "bomb", "ancient_blast", "musou", "spear_combo", "spear_sweep", "greatsword_combo", "greatsword_spin", "axe_chop", "club_smash", "revali_gale"); } }
     public static class AocZelda extends ZeldaKits { public AocZelda() { super("zelda_aoc_zelda", "Zelda (Age of Calamity)", "ゼルダ (ゼルダ無双 厄災の黙示録)", "Age of Calamity", new Look().dress().tunic(0x3a6aa0).hair(0xc8a050).under(0xe0e8f0), 110, 0.33, 0.98f, 2,
             "guardian_beam", "ancient_blast", "stasis", "cryonis", "magnesis", "bomb", "zonai_beam", "light_burst", "dodge", "musou"); } }
 }

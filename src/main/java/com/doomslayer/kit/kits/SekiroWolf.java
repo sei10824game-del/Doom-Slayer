@@ -171,7 +171,12 @@ public class SekiroWolf extends SlayerKit {
         // 傀儡の術: puppets fight for us until their time runs out
         if (e.tickCount % 5 == 0) for (LivingEntity p : e.level().getEntitiesOfClass(LivingEntity.class, e.getBoundingBox().inflate(24), x -> x.getPersistentData().getLong("w_pup") > 0)) {
             long end = p.getPersistentData().getLong("w_pup");
-            if (now >= end) { p.getPersistentData().putLong("w_pup", 0); Fx.dustBurst(L(e), 0xb02020, 1.4f, p.position().add(0, 1, 0), 20, 0.5); p.setHealth(0.5f); Combat.damage(e, p, 200); snd(e, SoundEvents.SOUL_ESCAPE, 0.8f, 0.6f); continue; }
+            if (now >= end) {
+                p.getPersistentData().putLong("w_pup", 0); Fx.dustBurst(L(e), 0xb02020, 1.4f, p.position().add(0, 1, 0), 20, 0.5); snd(e, SoundEvents.SOUL_ESCAPE, 0.8f, 0.6f);
+                if (p.getPersistentData().getBoolean("w_pupb")) { p.getPersistentData().putBoolean("w_pupb", false); p.removeEffect(MobEffects.GLOWING); Combat.damage(e, p, p.getMaxHealth() * 0.3f); if (p instanceof net.minecraft.world.entity.Mob bm) bm.setTarget(e); } // a boss breaks free, wounded
+                else { p.setHealth(0.5f); Combat.damage(e, p, 200); }
+                continue;
+            }
             Fx.dustBurst(L(e), 0xa060e0, 1f, p.position().add(0, p.getBbHeight() * 0.8, 0), 3, 0.3);
             if (p instanceof net.minecraft.world.entity.Mob m && (m.getTarget() == null || m.getTarget() == e || !m.getTarget().isAlive())) {
                 LivingEntity best = null; double bd = 400; for (LivingEntity x : p.level().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(16), x -> x != p && x != e && x.getPersistentData().getLong("w_pup") == 0 && Combat.isFoe(e, x))) { double dd = x.distanceToSqr(p); if (dd < bd) { bd = dd; best = x; } }
@@ -473,14 +478,15 @@ public class SekiroWolf extends SlayerKit {
         // ================= Ninjutsu (忍殺忍術) =================
         // 傀儡の術 — Puppeteer: after the deathblow the victim rises and fights for us for 8 s (5 emblems)
         out.add(cost(AttackDef.of("kugutsu").range(0, 3.6f).cd(60).weight(9).dur(34).weapon("kusabimaru")
-                .when((e, t) -> now(e) < t.getPersistentData().getLong("w_stun") && !Prog.boss(t) && emb(e) >= 5 && !Combat.around(e, t.position(), 14).stream().allMatch(x -> x == t))
+                .when((e, t) -> now(e) < t.getPersistentData().getLong("w_stun") && emb(e) >= 5 && !Combat.around(e, t.position(), 14).stream().allMatch(x -> x == t))
                 .tick((e, t, n) -> {
                     if (n == 1 && t != null) { Vec3 back = Vec3.directionFromRotation(0, t.getYRot()).scale(-1.3); e.teleportTo(t.getX() + back.x, t.getY(), t.getZ() + back.z); }
                     if (t != null) { t.setDeltaMovement(Vec3.ZERO); t.hurtMarked = true; }
                     if (n == 11 && t != null) {
                         slash(e, 90, -90, 0, 0xa060e0); Fx.ring(L(e), mid(t), 2f, 0xa060e0, 1.6f, 20); snd(e, SoundEvents.SOUL_ESCAPE, 1f, 0.5f);
                         var td = t.getPersistentData(); td.putLong("w_stun", 0); td.putLong("w_pup", now(e) + 160);
-                        t.setHealth(1f); t.removeAllEffects(); t.addEffect(new MobEffectInstance(MobEffects.GLOWING, 170, 0, false, false)); t.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 160, 1, false, false));
+                        if (Prog.boss(t)) { td.putBoolean("w_pupb", true); td.putLong("w_pup", now(e) + 220); } else t.setHealth(1f); // bosses keep their health and fight a little longer
+                        t.removeAllEffects(); t.addEffect(new MobEffectInstance(MobEffects.GLOWING, 170, 0, false, false)); t.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 160, 1, false, false));
                         LivingEntity best = null; double bd = 400; for (LivingEntity x : Combat.around(e, t.position(), 14)) if (x != t) { double dd = x.distanceToSqr(t); if (dd < bd) { bd = dd; best = x; } }
                         if (t instanceof net.minecraft.world.entity.Mob m) m.setTarget(best);
                     }

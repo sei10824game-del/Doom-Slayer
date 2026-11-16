@@ -122,6 +122,17 @@ public abstract class DeadSpaceKits extends SlayerKit {
                             snd(e, SoundEvents.FIREWORK_ROCKET_BLAST, 1f, 0.7f);
                         }
                     }).anim((p, t, a) -> { float k = ready(t, .15f, .88f); shoulder(p, k, 0, 2.4f * kick(t, 8 / 30f, .3f)); stance(p, k); }));
+            case "hand_cannon" -> out.add(gun("hand_cannon", "hand_cannon", 3, 20, 50, 22, new int[] {5}, SoundEvents.GENERIC_EXPLODE, 1.9f, 1, 0.005, 16f, 0xffa040, false)); // DS2 high-calibre sidearm
+            case "flame_wall" -> out.add(AttackDef.of("flame_wall").range(3, 9).cd(160).weight(1).dur(40).weapon("flame") // flamethrower alt-fire: a wall of fire
+                    .tick((e, t, n) -> {
+                        if (n == 8) { Vec3 c = e.position().add(e.getViewVector(1f).scale(4.5)); e.getPersistentData().putDouble("ds_wx", c.x); e.getPersistentData().putDouble("ds_wy", c.y); e.getPersistentData().putDouble("ds_wz", c.z); snd(e, SoundEvents.BLAZE_SHOOT, 1f, 0.7f); }
+                        if (n >= 8 && n < 38) { var d = e.getPersistentData(); Vec3 c = new Vec3(d.getDouble("ds_wx"), d.getDouble("ds_wy"), d.getDouble("ds_wz")); Vec3 side = new Vec3(-e.getViewVector(1f).z, 0, e.getViewVector(1f).x);
+                            for (int i = -3; i <= 3; i++) Fx.burst(L(e), ParticleTypes.FLAME, c.add(side.scale(i * 0.8)).add(0, 0.5, 0), 2, 0.2, 0.02);
+                            if (n % 5 == 0) for (LivingEntity f : Combat.around(e, c, 3.6)) { Combat.damage(e, f, 4); f.setSecondsOnFire(5); } }
+                    }).anim((p, t, a) -> { float k = ready(t, .15f, .85f); shoulder(p, k, 0.05f, 0.4f * kick(t, 8 / 40f, .2f)); stance(p, k); }));
+            case "line_mine" -> out.add(AttackDef.of("line_mine").range(3, 14).cd(130).weight(1).dur(26).weapon("line") // line gun alt-fire: a proximity mine
+                    .tick((e, t, n) -> { if (n == 8) { Combat.shoot(e, MINE, mz(e), aim(e, t, 0.02).add(0, 0.12, 0).normalize(), 0.8, 14f); snd(e, SoundEvents.PISTON_EXTEND, 1f, 1.4f); } })
+                    .anim((p, t, a) -> { float k = ready(t, .15f, .85f); shoulder(p, k, 0.1f, 1.6f * kick(t, 8 / 26f, .3f)); stance(p, k); }));
             case "ripper" -> out.add(AttackDef.of("ripper").range(3, 16).cd(80).weight(2).dur(36).weapon("ripper")
                     .tick((e, t, n) -> {
                         if (n >= 6 && n < 12) { Fx.burst(L(e), ParticleTypes.CRIT, mz(e), 3, 0.2, 0.1); if (n % 2 == 0) snd(e, SoundEvents.GRINDSTONE_USE, 0.7f, 1.8f); }
@@ -250,6 +261,8 @@ public abstract class DeadSpaceKits extends SlayerKit {
         rig.box(w, dark, -2, -4, -8, 4, 4, 10); rig.box(w, orange, -2.5f, -3.5f, -12, 5, 1, 4); rig.box(w, orange, -2.5f, -1.5f, -12, 5, 1, 4); rig.box(w, metal, -1, -3, -13, 2, 2, 2);
         w = rig.weapon(rig.rHand, "ripper");
         rig.box(w, dark, -2, -4, -7, 4, 4, 8); rig.box(w, steel, -4, -6, -11, 8, 8, 1); rig.box(w, metal, -1, -3, -10, 2, 2, 3);
+        w = rig.weapon(rig.rHand, "hand_cannon");
+        rig.box(w, steel, -1.5f, -3.5f, -9, 3, 3, 9); rig.box(w, dark, -1, -1, -2, 2, 4, 2); rig.box(w, orange, -0.5f, -4, -6, 1, 1, 3);
         w = rig.weapon(rig.rHand, "force");
         rig.box(w, dark, -2.5f, -4, -6, 5, 5, 8); rig.box(w, Mat.of(0xa0e0ff).glow(), -3, -4.5f, -9, 6, 6, 3); rig.box(w, metal, -1, -2, -3, 2, 2, 1);
         w = rig.weapon(rig.rHand, "contact");
@@ -265,11 +278,11 @@ public abstract class DeadSpaceKits extends SlayerKit {
     // ================= kits =================
     public static class Ds1Isaac extends DeadSpaceKits {
         public Ds1Isaac() { super("dead_space_isaac", "Isaac Clarke (DS1)", "アイザック・クラーク (DS1)", "Dead Space", 0x6a5a40, 0x8a8a8a, BLUE, 100,
-                "cutter", "pulse", "flame", "line", "ripper", "force", "contact"); }
+                "cutter", "pulse", "flame", "flame_wall", "line", "line_mine", "ripper", "force", "contact"); }
     }
     public static class Ds2Isaac extends DeadSpaceKits {
         public Ds2Isaac() { super("dead_space2_isaac", "Isaac Clarke (DS2)", "アイザック・クラーク (DS2)", "Dead Space 2", 0x4a4e56, 0xb83030, BLUE, 105,
-                "cutter", "javelin", "seeker", "detonator", "pulse", "flame", "line", "ripper", "contact"); }
+                "cutter", "javelin", "seeker", "detonator", "hand_cannon", "pulse", "flame", "flame_wall", "line", "line_mine", "ripper", "contact"); }
     }
     public static class Ds3Isaac extends DeadSpaceKits {
         public Ds3Isaac() { super("dead_space3_isaac", "Isaac Clarke (DS3)", "アイザック・クラーク (DS3)", "Dead Space 3", 0xd8dde0, 0x707880, ORANGE, 115,
