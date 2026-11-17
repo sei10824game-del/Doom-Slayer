@@ -29,12 +29,16 @@ public class SlayerProjectile extends Projectile {
     /** spawn a purely visual effect entity (custom-rendered tracer / beam / flash / blast / ring) */
     public static void visual(net.minecraft.server.level.ServerLevel l, ProjStyle st, Vec3 pos, Vec3 vel, int tint, float size, int life, Vec3 end) { visual(l, st, pos, vel, tint, size, life, end, 1f); }
     public static void visual(net.minecraft.server.level.ServerLevel l, ProjStyle st, Vec3 pos, Vec3 vel, int tint, float size, int life, Vec3 end, float radius) {
+        long gt = l.getGameTime(); // budget: at most 24 effect entities per level per tick, the rest are dropped (keeps heavy barrages smooth)
+        if (gt != budgetTick) { budgetTick = gt; budgetUsed = 0; }
+        if (++budgetUsed > 24) return;
         SlayerProjectile p = new SlayerProjectile(com.doomslayer.DoomSlayerMod.PROJECTILE.get(), l);
         p.setStyle(st); p.entityData.set(TINT, tint); p.entityData.set(SIZE, size); p.entityData.set(LIFE, life); p.entityData.set(RAD, radius);
         if (end != null) p.entityData.set(END, new org.joml.Vector3f((float) end.x, (float) end.y, (float) end.z));
         p.setPos(pos); p.setDeltaMovement(vel); p.setNoGravity(true); p.noPhysics = true;
         l.addFreshEntity(p);
     }
+    private static long budgetTick = -1; private static int budgetUsed;
     public float damage = 6; public int age2, pierceLeft;
     private final java.util.Set<Integer> hitIds = new java.util.HashSet<>();
     /** free scratch values for ProjStyle hooks */

@@ -173,6 +173,8 @@ public class SlayerEntity extends PathfinderMob {
     public void interruptAttack() { AttackDef d = currentAttack(); if (d != null) { d.end.run(this, atkTarget, serverTick); entityData.set(ATK, -1); serverTick = 0; cds[d.index] = d.cooldown; } }
 
     public boolean isAttacking() { return entityData.get(ATK) >= 0; }
+    /** self-test helper: start an attack ignoring cooldowns */
+    public void forceStart(AttackDef d, LivingEntity t) { gcd = 0; cds[d.index] = 0; atkTarget = t; serverTick = 0; entityData.set(ATK, d.index); d.start.run(this, t, 0); }
     public boolean tryStart(AttackDef d, LivingEntity t) {
         if (isAttacking() || gcd > 0 || cds[d.index] > 0) return false;
         atkTarget = t; serverTick = 0; entityData.set(ATK, d.index);

@@ -122,7 +122,7 @@ public class DarkAgesSlayer extends SlayerKit {
         out.add(AttackDef.of("serrat_dragon_strafe").range(6, 30).cd(900).dur(56).weapons("cshotgun", "shield")
                 .onStart(DarkAgesSlayer::sStrafe).tick(DarkAgesSlayer::tStrafe).anim(DarkAgesSlayer::aStrafe));
         out.add(AttackDef.of("atlan_mech_stomp").range(0, 14).noLos().cd(1200).dur(64).weapons("cshotgun", "shield")
-                .onStart((e, t, n) -> store(e, "das_st", t.position())).tick(DarkAgesSlayer::tStomp).anim(DarkAgesSlayer::aStomp));
+                .onStart((e, t, n) -> store(e, "das_st", t != null ? t.position() : e.position())).tick(DarkAgesSlayer::tStomp).anim(DarkAgesSlayer::aStomp));
     }
 
     // =====================================================================================================
@@ -440,9 +440,10 @@ public class DarkAgesSlayer extends SlayerKit {
         if (t == 33) { execute(e, tg); Combat.knock(tg, e.position(), 2, 0.4); snd(e, SoundEvents.PLAYER_ATTACK_KNOCKBACK, 1.3f, 0.5f); }
     }
     static void sStrafe(SlayerEntity e, LivingEntity tg, int t) {
-        Vec3 d = flat(tg.position().subtract(e.position()));
+        Vec3 tp = tg != null ? tg.position() : e.position().add(e.getViewVector(1f).scale(8));
+        Vec3 d = flat(tp.subtract(e.position()));
         store(e, "das_sa", e.position().add(d.scale(2)));
-        store(e, "das_sb", tg.position().add(d.scale(8)));
+        store(e, "das_sb", tp.add(d.scale(8)));
     }
     static void tStrafe(SlayerEntity e, LivingEntity tg, int t) {
         ServerLevel l = L(e);
