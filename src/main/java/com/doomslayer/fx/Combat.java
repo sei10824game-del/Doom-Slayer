@@ -113,7 +113,7 @@ public final class Combat {
         p.setOwner(s); p.setStyle(style); p.damage = dmg;
         p.setPos(from); p.setDeltaMovement(dir.normalize().scale(speed));
         s.level().addFreshEntity(p);
-        if (style.visible && style.size < 0.7f) Fx.flash((ServerLevel) s.level(), from, style.rgb, 0.4f + style.size * 0.5f); // muzzle flash
+        if (style.visible && style.size < 0.7f) Fx.flash((ServerLevel) s.level(), from, style.rgb, Math.min(0.6f, 0.3f + style.size * 0.3f)); // muzzle flash
         return p;
     }
     public static void sound(SlayerEntity s, net.minecraft.sounds.SoundEvent ev, float vol, float pitch) { Fx.sound((ServerLevel) s.level(), s.position(), ev, vol, pitch); }

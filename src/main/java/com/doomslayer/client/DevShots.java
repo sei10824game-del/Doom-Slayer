@@ -45,7 +45,7 @@ public final class DevShots {
                 server.execute(() -> spawn(server, kit)); cnt = 35; phase = 2;
             }
             case 2 -> {
-                if (cnt == 4 && System.getenv("DOOMSLAYER_FXDEMO") != null) server.execute(() -> demo(server));
+                if (cnt <= 14 && cnt >= 2 && cnt % 3 == 0 && System.getenv("DOOMSLAYER_FXDEMO") != null) server.execute(() -> demo(server));
                 if (cnt == 5) for (var en : mc.level.entitiesForRendering()) if (en instanceof com.doomslayer.entity.SlayerProjectile p) System.out.println("DEVSHOTS ENT " + KITS.get(kitIdx).id + " style=" + p.style().resolved() + " name=" + p.style().name + " size=" + p.sizeOv() + " life=" + p.life() + " age=" + p.tickCount + " at " + p.position());
                 if (--cnt <= 0) { shot(mc, KITS.get(kitIdx).id + "_idle"); atkStep = 0; cnt = -1; phase = 3; } }
             case 3 -> {

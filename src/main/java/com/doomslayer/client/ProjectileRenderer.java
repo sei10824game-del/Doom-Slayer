@@ -163,7 +163,7 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                 VertexConsumer cap = buf.getBuffer(RenderType.eyes(CAPSULE));
                 oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 4.5, sz * 1.6, 0, col, 0.85f, full);
                 oriented(cap, ps, Vec3.ZERO, vel, toCam, sz * 3.2, sz * 0.7, 0, hot, 1f, full);
-                billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), sz * 1.3f, col, 0.7f, 0, full);
+                billboard(ps, buf.getBuffer(RenderType.eyes(GLOW)), sz * 1.1f, col, 0.4f, 0, full);
             }
             case PLASMA -> { // fat glowing bolt: halo, teardrop body, white-hot core, crackling orbiting sparks
                 VertexConsumer cap = buf.getBuffer(RenderType.eyes(CAPSULE));
@@ -334,7 +334,7 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                     float ang =com.doomslayer.anim.Keys.lerp(from, head, i / (float) N); double a = Math.toRadians(ang), x = -Math.sin(a) * rad, fwd = Math.cos(a) * rad, y = x * Math.sin(tilt); x *= Math.cos(tilt);
                     Vec3 q = new Vec3(x * Math.cos(yaw) - fwd * Math.sin(yaw), y, x * Math.sin(yaw) + fwd * Math.cos(yaw));
                     if (prev != null) {
-                        float w0 = size * 0.9f * ((i - 1f) / N), w1 = size * 0.9f * (i / (float) N), al = (i / (float) N) * (1 - t) * (1 - t);
+                        float w0 = size * 0.55f * ((i - 1f) / N), w1 = size * 0.55f * (i / (float) N), al = (i / (float) N) * (1 - t) * (1 - t);
                         ribbon(g, ps, prev, q, toCam, w0, w1, col, 0.85f * al + 0.05f, full); ribbon(g, ps, prev, q, toCam, w0 * 0.4f, w1 * 0.4f, hot, al, full);
                     }
                     prev = q;
