@@ -27,15 +27,19 @@ import org.joml.Matrix4f;
  * darts, missiles with exhaust flame, spinning grenades and saw discs, plus a tapering ribbon trail. All textures are generated procedurally.
  */
 public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
-    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING, CRYSTAL, HEART_T, HEX;
+    private static ResourceLocation GLOW, STAR, CAPSULE, DART, MISSILE, GRENADE, DISC, RING, CRYSTAL, HEART_T, HEX, GLOW_T, CAPSULE_T;
     public ProjectileRenderer(EntityRendererProvider.Context c) { super(c); }
 
     // ---------- procedural textures ----------
     interface Px { int at(int x, int y); } // ARGB
-    private static ResourceLocation tex(String name, int w, int h, Px f) {
+    /** additive render types (eyes) blend with ONE,ONE and ignore alpha, so glow textures must be premultiplied: transparent pixels have to be black */
+    private static ResourceLocation tex(String name, int w, int h, Px f) { return tex(name, w, h, false, f); }
+    private static ResourceLocation texA(String name, int w, int h, Px f) { return tex(name, w, h, true, f); }
+    private static ResourceLocation tex(String name, int w, int h, boolean premult, Px f) {
         NativeImage img = new NativeImage(w, h, true);
         for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
             int c = f.at(x, y);
+            if (premult) { int a = c >>> 24; c = a << 24 | (((c >> 16 & 255) * a / 255) << 16) | (((c >> 8 & 255) * a / 255) << 8) | ((c & 255) * a / 255); }
             img.setPixelRGBA(x, y, (c & 0xff00ff00) | ((c >> 16) & 0xff) | ((c & 0xff) << 16)); // ARGB -> ABGR
         }
         return Minecraft.getInstance().getTextureManager().register("doomslayer_" + name, new DynamicTexture(img));
@@ -46,18 +50,20 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
 
     private static void init() {
         if (GLOW != null) return;
-        GLOW = tex("glow", 32, 32, (x, y) -> {
+        GLOW = texA("glow", 32, 32, (x, y) -> {
             double d = Math.hypot(x - 15.5, y - 15.5) / 16.0; double a = Math.max(0, 1 - d); a = a * a * (d < 0.35 ? 1.0 : 0.9);
             return argb((int) (255 * a), 0xffffff);
         });
-        STAR = tex("star", 32, 32, (x, y) -> {
+        GLOW_T = tex("glow_t", 32, 32, (x, y) -> { double d = Math.hypot(x - 15.5, y - 15.5) / 16.0; double a = Math.max(0, 1 - d); return argb((int) (255 * a * a), 0xffffff); });
+        CAPSULE_T = tex("capsule_t", 64, 16, (x, y) -> { float dx = (x + .5f - 32) / 32f, dy = (y + .5f - 8) / 8f; float a = (float) Math.exp(-dy * dy * 3.2f) * (1 - sstep(0.55f, 1f, Math.abs(dx))); return argb((int) (255 * a), 0xffffff); });
+        STAR = texA("star", 32, 32, (x, y) -> {
             float dx = (x - 15.5f) / 16f, dy = (y - 15.5f) / 16f, ax = Math.abs(dx), ay = Math.abs(dy);
             float h = (float) Math.exp(-ay * 22) * (1 - ax), v = (float) Math.exp(-ax * 22) * (1 - ay);
             float dg = (float) Math.max(Math.exp(-Math.abs(dx - dy) * 16), Math.exp(-Math.abs(dx + dy) * 16)) * (1 - Math.max(ax, ay)) * 0.35f;
             float core = Math.max(0, 1 - (float) Math.hypot(dx, dy) * 3f);
             return argb((int) (255 * Mth.clamp(Math.max(Math.max(h, v), Math.max(dg, core)), 0, 1)), 0xffffff);
         });
-        CAPSULE = tex("capsule", 64, 16, (x, y) -> {
+        CAPSULE = texA("capsule", 64, 16, (x, y) -> {
             float dx = (x + .5f - 32) / 32f, dy = (y + .5f - 8) / 8f;
             float a = (float) Math.exp(-dy * dy * 3.2f) * (1 - sstep(0.55f, 1f, Math.abs(dx)));
             return argb((int) (255 * a), 0xffffff);
@@ -84,7 +90,7 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             if (x >= 18 && x <= 25 && y >= 4 && y <= 6) return gray(255, 170); // lever
             return 0;
         });
-        CRYSTAL = tex("crystal", 64, 16, (x, y) -> { // double-pointed shard
+        CRYSTAL = texA("crystal", 64, 16, (x, y) -> { // double-pointed shard
             float dx = (x + .5f - 32) / 32f, dy = Math.abs(y + .5f - 8) / 8f; float edge = 1 - Math.abs(dx) * 0.95f;
             if (dy > edge) return 0; int v = 255 - (int) (dy / Math.max(edge, 0.05f) * 120); return gray(255, v);
         });
@@ -92,14 +98,14 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             float dx = (x - 15.5f) / 11f, dy = -(y - 17f) / 11f; float v = (dx * dx + dy * dy - 1); boolean in = v * v * v - dx * dx * dy * dy * dy <= 0;
             return in ? gray(255, 255 - (int) ((y - 6) * 4)) : 0;
         });
-        HEX = tex("hex", 64, 64, (x, y) -> { // triangular/hex lattice fading toward the rim
+        HEX = texA("hex", 64, 64, (x, y) -> { // triangular/hex lattice fading toward the rim
             float px = x - 31.5f, py = y - 31.5f, d = (float) Math.hypot(px, py) / 32f; if (d > 1) return 0;
             float a = 0;
             for (int k = 0; k < 3; k++) { double ang = k * Math.PI / 3; double v = (px * Math.cos(ang) + py * Math.sin(ang)) / 9.0; double fr = Math.abs(v - Math.floor(v) - 0.5); a = Math.max(a, (float) Math.max(0, 1 - Math.abs(fr - 0.5) * 9)); }
             a = Math.max(a * 0.9f, 0.12f) * (1 - sstep(0.75f, 1f, d));
             return argb((int) (255 * a), 0xffffff);
         });
-        RING = tex("ring", 64, 64, (x, y) -> {
+        RING = texA("ring", 64, 64, (x, y) -> {
             float d = (float) Math.hypot(x - 31.5f, y - 31.5f) / 32f; float a = (float) Math.exp(-Math.pow((d - 0.82f) * 11f, 2)) * (1 - sstep(0.9f, 1f, d));
             return argb((int) (255 * a), 0xffffff);
         });
@@ -258,7 +264,7 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             case BLAST -> { // cauliflower fireball: hot core, orange puffs bursting outward, grey smoke lingering
                 float grow = com.doomslayer.anim.Keys.outCubic(t), r = size * (0.45f + 0.9f * grow);
                 java.util.Random rnd = new java.util.Random(p.getId() * 7919L);
-                VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW)), smoke = buf.getBuffer(RenderType.entityTranslucent(GLOW));
+                VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW)), smoke = buf.getBuffer(RenderType.entityTranslucent(GLOW_T));
                 for (int i = 0; i < 7; i++) {
                     Vec3 o = new Vec3(rnd.nextGaussian(), rnd.nextGaussian() * 0.6 + 0.2, rnd.nextGaussian()).scale(r * 0.55 * grow);
                     ps.pushPose(); ps.translate(o.x, o.y, o.z);
@@ -274,7 +280,7 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
                 Vec3 sv = p.end(); int cnt = (int) sv.y; float spread = p.radius(), spd = (float) sv.x, tt = p.tickCount + pt;
                 java.util.Random rnd = new java.util.Random(p.getId() * 131L + 7);
                 boolean smoke = s == ProjStyle.VIS_PUFF_SMOKE, spark = s == ProjStyle.VIS_PUFF_SPARK;
-                VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW)), sm = buf.getBuffer(RenderType.entityTranslucent(GLOW)), cap = buf.getBuffer(RenderType.eyes(CAPSULE));
+                VertexConsumer add = buf.getBuffer(RenderType.eyes(GLOW)), sm = buf.getBuffer(RenderType.entityTranslucent(GLOW_T)), cap = buf.getBuffer(RenderType.eyes(CAPSULE));
                 for (int i = 0; i < cnt; i++) {
                     Vec3 dir = new Vec3(rnd.nextGaussian(), rnd.nextGaussian() * (smoke ? 0.5 : 1), rnd.nextGaussian()).normalize(); float rr = rnd.nextFloat(), k = 0.6f + rnd.nextFloat() * 0.8f;
                     double drift = Math.max(spd, 0.015) * tt * (spark ? 7 : 4) * k;
@@ -299,9 +305,8 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
             case BODYSHIELD -> { // energy shield shimmer hugging the body: three rotating hoops + a hex sheet facing the viewer
                 float h = size * 0.5f, w = p.radius() * 0.75f; Vec3 c = new Vec3(0, h, 0);
                 VertexConsumer ring = buf.getBuffer(RenderType.eyes(RING));
-                for (int k = 0; k < 3; k++) { double a = k * Math.PI / 3 + t * 0.9; sprite(ring, ps, c, new Vec3(Math.cos(a) * w, 0, Math.sin(a) * w), new Vec3(0, h, 0), toCam, col, 0.55f * fade, full); }
-                Vec3 right = toCam.cross(new Vec3(0, 1, 0)); if (right.lengthSqr() > 1e-4) { right = right.normalize(); sprite(buf.getBuffer(RenderType.eyes(HEX)), ps, c, right.scale(w * 1.25f), new Vec3(0, h * 1.1f, 0), toCam, col, 0.5f * fade, full); }
-                sprite(buf.getBuffer(RenderType.eyes(GLOW)), ps, c, (right.lengthSqr() > 1e-4 ? right : new Vec3(1, 0, 0)).scale(w * 1.6f), new Vec3(0, h * 1.3f, 0), toCam, col, 0.25f * fade, full);
+                for (int k = 0; k < 3; k++) { double a = k * Math.PI / 3 + t * 0.9; sprite(ring, ps, c, new Vec3(Math.cos(a) * w, 0, Math.sin(a) * w), new Vec3(0, h, 0), toCam, col, 0.4f * fade, full); }
+                Vec3 right = toCam.cross(new Vec3(0, 1, 0)); if (right.lengthSqr() > 1e-4) { right = right.normalize(); sprite(buf.getBuffer(RenderType.eyes(HEX)), ps, c, right.scale(w * 1.25f), new Vec3(0, h * 1.1f, 0), toCam, col, 0.3f * fade, full); }
                 return true;
             }
             case AURA -> { // healing / revival: hoops climbing the body, motes on a helix, soft column of light
@@ -363,7 +368,7 @@ public class ProjectileRenderer extends EntityRenderer<SlayerProjectile> {
         boolean smoke = s.trail == ParticleTypes.SMOKE || s.trail == ParticleTypes.LARGE_SMOKE;
         boolean fire = s.trail == ParticleTypes.FLAME || s.trail == ParticleTypes.SMALL_FLAME;
         int c1 = fire ? mix(col, 0xff8020, 0.5f) : col;
-        VertexConsumer glow = buf.getBuffer(RenderType.eyes(CAPSULE)), sm = smoke ? buf.getBuffer(RenderType.entityTranslucent(CAPSULE)) : null;
+        VertexConsumer glow = buf.getBuffer(RenderType.eyes(CAPSULE)), sm = smoke ? buf.getBuffer(RenderType.entityTranslucent(CAPSULE_T)) : null;
         float w0 = Math.max(0.03f, sz * (smoke ? 1.3f : 0.9f));
         for (int i = 0; i < n - 1; i++) {
             Vec3 a = h.get(i).subtract(ePos), b = (i == n - 2 ? ePos : h.get(i + 1)).subtract(ePos);

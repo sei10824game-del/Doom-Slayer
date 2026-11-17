@@ -473,16 +473,24 @@ public abstract class ZeldaKits extends SlayerKit {
             rig.box(rig.torso, under, -4, -12, -2, 8, 12, 4); rig.box(rig.torso, tunic, -4.2f, -12, -2.2f, 8, 11, 4, .25f); rig.box(rig.torso, belt, -4.5f, -4, -2.5f, 9, 2, 5); rig.box(rig.torso, buckle, -1, -4, -3.1f, 2, 2, 1);
             rig.box(rig.torso, Mat.of(l.shield == 0 ? 0x704020 : 0x704020), -1, -12, 2.3f, 2, 8, 2); // sheathed sword on back
         }
-        // head
-        rig.box(rig.head, skin, -4, -8, -4, 8, 8, 8);
-        if (l.bigHead) rig.box(rig.head, skin, -5, -9, -5, 10, 10, 10, .1f);
-        rig.box(rig.head, hair, -4, -8.4f, -4, 8, 3, 8, .3f); rig.box(rig.head, hair, -4, -8, 3, 8, 8, 1, .3f);
-        if (l.longHair) { rig.box(rig.head, hair, -4, -8, 3.2f, 8, 16, 1); rig.box(rig.head, hair, -5, -6, -2, 1, 10, 4); rig.box(rig.head, hair, 4, -6, -2, 1, 10, 4); }
-        rig.box(rig.head, eye, -3, -4.5f, -4.2f, 2, 2, 1); rig.box(rig.head, eye, 1, -4.5f, -4.2f, 2, 2, 1);
-        if (l.ears) { rig.box(rig.head, skin, -6, -5, -1, 2, 1, 2); rig.box(rig.head, skin, 4, -5, -1, 2, 1, 2); } // pointed hylian ears
-        if (l.hat >= 0 && !l.hatless) { // pointed cap
+        // head (the Toon-style big head is the same box inflated; everything on the face moves out with it)
+        float g = l.bigHead ? 1.0f : 0f;
+        Mat eyeM = Mat.of(0x1e3f98).bevel(.05f), eyeW = Mat.of(0xf4f8ff);
+        rig.box(rig.head, skin, -4, -8, -4, 8, 8, 8, g);
+        rig.box(rig.head, hair, -4, -8.4f, -4, 8, 3, 8, .3f + g); rig.box(rig.head, hair, -4, -8, 3, 8, 8, 1, .3f + g);
+        if (l.longHair) { rig.box(rig.head, hair, -4, -8, 3.2f + g, 8, 16, 1); rig.box(rig.head, hair, -5 - g, -6, -2, 1, 10, 4); rig.box(rig.head, hair, 4 + g, -6, -2, 1, 10, 4); }
+        rig.box(rig.head, eyeW, -3.2f, -4.7f, -4.2f - g, 2, 2, 1); rig.box(rig.head, eyeW, 1.2f, -4.7f, -4.2f - g, 2, 2, 1);
+        rig.box(rig.head, eyeM, -2.6f, -4.2f, -4.4f - g, 1, 2, 1); rig.box(rig.head, eyeM, 1.6f, -4.2f, -4.4f - g, 1, 2, 1);
+        if (l.ears) { rig.box(rig.head, skin, -6.5f - g, -5.5f, -1, 3, 1, 2); rig.box(rig.head, skin, 3.5f + g, -5.5f, -1, 3, 1, 2); } // long pointed hylian ears
+        if (l.hat >= 0 && !l.hatless) { // pointed cap sweeping back and drooping behind the head, with a bobble
             Mat hat = Mat.of(l.hat).noise(.1f).bevel(.15f);
-            rig.box(rig.head, hat, -4.5f, -10, -4.5f, 9, 3, 9); rig.box(rig.head, hat, -3.5f, -13, -3, 7, 3, 7); rig.box(rig.head, hat, -2.5f, -16, -1.5f, 5, 3, 5); rig.box(rig.head, hat, -1.5f, -18, 0, 3, 3, 4); rig.box(rig.head, hat, -1, -17, 3, 2, 4, 3); rig.box(rig.head, buckle, -0.5f, -17.5f, 6, 1, 1, 1);
+            rig.box(rig.head, hat, -4.5f, -10.5f, -4.5f, 9, 3, 9, g); // band over the brow
+            rig.box(rig.head, hat, -3.5f, -13, -3.5f, 7, 3, 7, g);
+            rig.box(rig.head, hat, -2.8f, -14, -1.5f, 5, 3, 5, g);
+            rig.box(rig.head, hat, -2.2f, -13, 1.5f, 4, 3, 4, g);
+            rig.box(rig.head, hat, -1.7f, -10.5f, 4.5f, 3, 3, 3, g);
+            rig.box(rig.head, hat, -1.2f, -7.5f, 6.5f, 2, 3, 2, g);
+            rig.box(rig.head, buckle, -0.7f, -5, 7.5f, 1, 1, 1, g);
         }
         if (l.bandana) rig.box(rig.head, Mat.of(0xc03040).noise(.1f), -4, -8, -4, 8, 3, 8, .4f);
         if (l.dress) { rig.box(rig.head, buckle, -3, -9.5f, -4.3f, 6, 1, 1); rig.box(rig.head, Mat.of(0x4060e0).glow(), -0.5f, -10.5f, -4.5f, 1, 2, 1); } // tiara + gem

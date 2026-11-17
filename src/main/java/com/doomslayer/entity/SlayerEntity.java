@@ -60,7 +60,7 @@ public class SlayerEntity extends PathfinderMob {
     @Nullable public LivingEntity atkTarget;
     /** progression-based damage multiplier (levels, upgrades), saved with the entity */
     public float dmgScale() { var d = getPersistentData(); return d.contains("ds_dmgx") ? d.getFloat("ds_dmgx") : 1f; }
-    private int lastGuardFx = -100, lastHitFx = -100, airTicks, lastHealFx = -100;
+    private boolean wasInv; private int lastGuardFx = -100, lastHitFx = -100, airTicks, lastHealFx = -100;
     private float lastHp = -1, healAcc;
     /** CLIENT: countdown of the rise-up animation after a revival */
     public int reviveAnim;
@@ -137,7 +137,9 @@ public class SlayerEntity extends PathfinderMob {
         }
         if (level() instanceof net.minecraft.server.level.ServerLevel sl) {
             var res = getEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
-            if (res != null && res.getAmplifier() >= 3 && tickCount % 7 == 0) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f); // invulnerable / guard stance shimmer
+            boolean inv = res != null && res.getAmplifier() >= 3 && res.getDuration() >= 12; // a real invulnerability / guard state started: one shimmer for its whole duration
+            if (inv && !wasInv) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f, Math.min(res.getDuration(), 80));
+            wasInv = inv;
             double sp = getDeltaMovement().horizontalDistance();
             if (onGround()) {
                 if (airTicks > 8) { // landing thud

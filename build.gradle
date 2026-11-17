@@ -84,6 +84,8 @@ minecraft {
         client {
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
+            // dev: -PquickWorld=<save name> opens that save immediately (used by the screenshot QA hook)
+            if (project.hasProperty('quickWorld')) args '--quickPlaySingleplayer', project.property('quickWorld')
         }
 
         server {

@@ -11,6 +11,9 @@ public class Atlas {
     private final List<Box> boxes = new ArrayList<>();
     private int cx, cy, rowH;
 
+    /** rows of the 256 px atlas consumed so far (for diagnostics) */
+    public int usedRows() { return cy + rowH; }
+
     /** @return {u,v} texOffs for a w*h*d cuboid */
     public int[] alloc(Mat m, int w, int h, int d) {
         int bw = 2 * (w + d), bh = d + h;

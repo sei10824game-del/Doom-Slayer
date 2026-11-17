@@ -70,8 +70,9 @@ public final class Fx {
         com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_SHIELD, p, Vec3.ZERO, rgb, size, 8, normal.normalize());
     }
     /** full-body energy shield shimmer around an entity standing at 'feet' */
-    public static void bodyShield(ServerLevel l, Vec3 feet, int rgb, float height, float width) {
-        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_BODYSHIELD, feet, Vec3.ZERO, rgb, height, 8, null, width);
+    public static void bodyShield(ServerLevel l, Vec3 feet, int rgb, float height, float width) { bodyShield(l, feet, rgb, height, width, 8); }
+    public static void bodyShield(ServerLevel l, Vec3 feet, int rgb, float height, float width, int life) {
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_BODYSHIELD, feet, Vec3.ZERO, rgb, height, life, null, width);
     }
     /** rising hoops + spiralling motes + soft light column around a body (healing / revival) */
     public static void aura(ServerLevel l, Vec3 feet, int rgb, float height, float width, int life) {

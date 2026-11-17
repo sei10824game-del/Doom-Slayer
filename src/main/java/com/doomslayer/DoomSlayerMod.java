@@ -63,6 +63,21 @@ public class DoomSlayerMod {
 
     @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class Client {
+        /** dev hook: DOOMSLAYER_MODELTEST=<dir> builds every kit model, checks atlas usage and dumps the texture atlases as PNGs, then exits */
+        @net.minecraftforge.eventbus.api.SubscribeEvent
+        public static void modelTest(net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent ev) {
+            String dir = System.getenv("DOOMSLAYER_MODELTEST"); if (dir == null) return;
+            int fails = 0; new java.io.File(dir).mkdirs();
+            for (SlayerKit k : Kits.ALL) {
+                try {
+                    var rg = new com.doomslayer.client.Rig(new net.minecraft.client.model.geom.builders.MeshDefinition()); k.buildModel(rg);
+                    System.out.println("MODELTEST ATLAS " + rg.atlas.usedRows() + "/256 " + k.id + " weapons=" + rg.weapons.size());
+                    var imgs = rg.atlas.bake(); try { imgs[0].writeToFile(new java.io.File(dir, k.id + ".png")); } catch (Exception ex) { System.out.println("MODELTEST write failed " + ex); }
+                    for (var im : imgs) im.close();
+                } catch (Throwable t) { fails++; System.out.println("MODELTEST FAIL " + k.id + ": " + t); }
+            }
+            System.out.println("MODELTEST DONE fails=" + fails); System.exit(0);
+        }
         @net.minecraftforge.eventbus.api.SubscribeEvent
         public static void layers(EntityRenderersEvent.RegisterLayerDefinitions e) {
             for (SlayerKit k : Kits.ALL) e.registerLayerDefinition(KitClient.layerOf(k), () -> KitClient.get(k).layer);

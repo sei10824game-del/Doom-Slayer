@@ -60,6 +60,12 @@ public final class Rules {
             e.moveTo(base.x, base.y, base.z); z.moveTo(base.x + 3.5, base.y, base.z); z.setNoAi(true);
             z.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(5000); z.setHealth(5000);
             l.addFreshEntity(e); l.addFreshEntity(z);
+            try { // the model must build and its 256x256 atlas must fit (an overflow would crash the client when the entity first renders)
+                var mesh = new net.minecraft.client.model.geom.builders.MeshDefinition(); var rg = new com.doomslayer.client.Rig(mesh); kit.buildModel(rg);
+                int rows = rg.atlas.usedRows(); System.out.println("SELFTEST ATLAS " + rows + "/256 " + kit.id);
+                if (rows > 245) fails.add(kit.id + " atlas nearly full: " + rows + "/256");
+                var imgs = rg.atlas.bake(); for (var im : imgs) im.close();
+            } catch (Throwable ex) { fails.add(kit.id + " MODEL BUILD: " + ex); }
             try { kit.passive(e); e.tick(); } catch (Throwable ex) { fails.add(kit.id + " passive/tick: " + ex); }
             try { kit.modifyDamage(e, e.damageSources().mobAttack(z), 5f); } catch (Throwable ex) { fails.add(kit.id + " modifyDamage: " + ex); }
             try { e.setHealth(1f); boolean r = kit.preventDeath(e); e.setHealth(e.getMaxHealth()); } catch (Throwable ex) { fails.add(kit.id + " preventDeath: " + ex); }
