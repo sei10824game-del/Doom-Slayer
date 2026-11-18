@@ -171,7 +171,7 @@ public abstract class ZeldaKits extends SlayerKit {
     // ---------- attack factories ----------
     static final Set<String> TWO_HANDED = Set.of("spear", "greatsword", "axe", "club", "hammer", "biggoron", "ballchain");
     AttackDef base(String id, String w, double min, double max, int cd, int dur, int weight) {
-        return AttackDef.of(id).range((float) min, (float) max).cd(cd).dur(dur).weight(weight).weapons(w, look.noShield || w == null || TWO_HANDED.contains(w) ? null : "shield"); // two-handers leave the shield on the back
+        return AttackDef.of(id).range((float) min, (float) max).cd(cd).dur(dur).weight(weight).weapons("bow".equals(w) ? "none" : w, "bow".equals(w) ? "bow" : (look.noShield || w == null || TWO_HANDED.contains(w) ? null : "shield")); // two-handers leave the shield on the back
     }
     AttackDef melee(String id, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) { return meleeW(id, "sword", range, cd, dur, hits, dmg, kb, up, rgb, k, frame, weight); }
     AttackDef meleeW(String id, String weapon, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) {
@@ -521,7 +521,7 @@ public abstract class ZeldaKits extends SlayerKit {
             switch (n) {
                 case "sword" -> { w = rig.weapon(rig.rHand, "sword"); rig.box(w, steel, -0.5f, -2.5f, -17, 1, 2, 15); rig.box(w, Mat.of(look.blade == 0xdce4f0 ? 0xa8c8f0 : look.blade).glow(), -0.3f, -2.2f, -17, 1, 1, 14); rig.box(w, gold, -2.5f, -3, -3, 5, 2, 1); rig.box(w, hilt, -0.5f, -2.5f, -2, 1, 2, 5); }
                 case "shield" -> { w = rig.weapon(rig.lHand, "shield"); rig.box(w, Mat.of(look.shield).bevel(.2f), 2, -5, -4, 1, 10, 8); rig.box(w, Mat.of(look.trim).bevel(.2f), 3, -6, -4.5f, 1, 12, 1); rig.box(w, gold, 3, -2, -1, 1, 3, 3); rig.box(w, Mat.of(look.trim), 3, -3, -5, 1, 1, 10); }
-                case "bow" -> { w = rig.weapon(rig.rHand, "bow"); rig.box(w, wood, -0.5f, -9, -2, 1, 18, 1); rig.box(w, wood, -0.5f, -10, -3, 1, 2, 1); rig.box(w, wood, -0.5f, 8, -3, 1, 2, 1); rig.box(w, Mat.of(0xe0e0d0), -0.2f, -9, -3, 1, 18, 1); }
+                case "bow" -> { w = rig.weapon(rig.lHand, "bow"); rig.box(w, wood, -0.5f, -9, -2, 1, 18, 1); rig.box(w, wood, -0.5f, -10, -3, 1, 2, 1); rig.box(w, wood, -0.5f, 8, -3, 1, 2, 1); rig.box(w, Mat.of(0xe0e0d0), -0.2f, -9, -3, 1, 18, 1); }
                 case "slingshot" -> { w = rig.weapon(rig.rHand, "slingshot"); rig.box(w, wood, -0.5f, -2, -4, 1, 2, 5); rig.box(w, wood, -2.5f, -5, -6, 1, 4, 1); rig.box(w, wood, 1.5f, -5, -6, 1, 4, 1); rig.box(w, Mat.of(0xa04030), -1.5f, -5, -6, 3, 1, 1); }
                 case "bomb" -> { w = rig.weapon(rig.rHand, "bomb"); rig.box(w, dark, -2, -2.5f, -4, 4, 4, 4, .2f); rig.box(w, Mat.of(FIRE).glow(), -0.5f, -4, -3, 1, 2, 1); }
                 case "boomerang" -> { w = rig.weapon(rig.rHand, "boomerang"); rig.box(w, Mat.of(0xc08a40).bevel(.2f), -3, -2, -6, 6, 1, 2); rig.box(w, Mat.of(0xc08a40).bevel(.2f), -3, -2, -8, 2, 1, 2); rig.box(w, Mat.of(0xc08a40).bevel(.2f), 1, -2, -8, 2, 1, 2); }

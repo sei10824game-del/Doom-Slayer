@@ -74,13 +74,15 @@ final class KU {
     static void stance(Pose p, float k) {
         p.lLegX = lerp(p.lLegX, -0.3f, k); p.rLegX = lerp(p.rLegX, 0.26f, k); p.lLegZ -= 0.06f * k; p.rLegZ += 0.08f * k; p.rootY -= 0.4f * k;
     }
-    static void throwAnim(Pose p, float t) {
-        p.rArmX = track(t, 0, -0.2f, .25f, -2.6f, .5f, -0.4f, .7f, -1.4f, 1, -0.2f);
-        p.rArmZ = track(t, 0, 0.1f, .25f, 0.5f, .5f, -0.2f, 1, 0.1f);
-        p.lArmX = track(t, 0, 0, .25f, -1f, .5f, 0.3f, 1, 0);
-        p.bodyY = track(t, 0, 0, .25f, 0.5f, .5f, -0.5f, .8f, -0.2f, 1, 0); p.headY = -p.bodyY * 0.5f;
-        p.bodyX = track(t, 0, 0, .25f, -0.2f, .5f, 0.35f, 1, 0);
-        p.rLegX = track(t, 0, 0, .25f, 0.3f, .5f, -0.4f, 1, 0); p.lLegX = track(t, 0, 0, .25f, -0.3f, .5f, 0.4f, 1, 0);
+    static void throwAnim(Pose p, float t) { // wind-up (arm back, weight on the rear foot) -> whip forward -> long follow-through
+        p.rArmX = track(t, 0, -0.2f, .3f, -2.9f, .42f, -2.2f, .52f, -0.3f, .72f, 0.2f, 1, -0.2f);
+        p.rArmZ = track(t, 0, 0.1f, .3f, 0.8f, .52f, -0.3f, 1, 0.1f);
+        p.rHandX = track(t, 0, 0.3f, .3f, 1.0f, .52f, -0.9f, 1, 0.3f);
+        p.lArmX = track(t, 0, 0, .3f, -1.4f, .52f, 0.5f, 1, 0); p.lArmZ = track(t, 0, 0, .3f, -0.6f, .52f, 0.3f, 1, 0);
+        p.bodyY = track(t, 0, 0, .3f, 0.9f, .52f, -0.9f, .75f, -0.6f, 1, 0); p.headY = -p.bodyY * 0.5f;
+        p.bodyX = track(t, 0, 0, .3f, -0.3f, .52f, 0.5f, 1, 0);
+        p.rLegX = track(t, 0, 0, .3f, 0.45f, .52f, -0.5f, 1, 0); p.lLegX = track(t, 0, 0, .3f, -0.4f, .52f, 0.5f, 1, 0);
+        p.rootY = track(t, 0, 0, .3f, -0.8f, .52f, -1.2f, 1, 0); p.rootZ = track(t, 0, 0, .3f, 0.8f, .52f, -1.6f, 1, 0);
     }
     /** 4-phase value curve: base -> coil (decelerating wind-up) -> strike (accelerating snap) -> follow-through (decelerating overshoot) -> base */
     static float kf(float u, float base, float coil, float strike, float follow) {
