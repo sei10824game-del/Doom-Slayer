@@ -36,6 +36,7 @@ public abstract class SlayerKit {
             defineAttacks(attacks);
             com.doomslayer.kit.kits.MeleeFix.apply(this, attacks);
             com.doomslayer.kit.kits.RangedFix.apply(this, attacks);
+            com.doomslayer.kit.kits.ResourceFix.apply(this, attacks);
             for (int i = 0; i < attacks.size(); i++) attacks.get(i).index = i;
         }
         return attacks;
@@ -58,4 +59,7 @@ public abstract class SlayerKit {
 
     /** SERVER: this slayer just killed 'victim' (progression: beads, level-ups, upgrades...). */
     public void onKill(SlayerEntity e, net.minecraft.world.entity.LivingEntity victim) { com.doomslayer.kit.kits.Prog.familyKill(this, e, victim); }
+
+    /** SERVER: this slayer's attack just damaged 'victim' */
+    public void onHit(SlayerEntity e, net.minecraft.world.entity.LivingEntity victim, float dmg) { com.doomslayer.kit.kits.ResourceFix.hit(e); }
 }

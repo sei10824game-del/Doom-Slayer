@@ -113,6 +113,7 @@ public class SlayerEntity extends PathfinderMob {
         for (int i = 0; i < cds.length; i++) if (cds[i] > 0) cds[i]--;
         if (gcd > 0) gcd--;
         kit.passive(this);
+        com.doomslayer.kit.kits.ResourceFix.tick(this);
         if (emoteCd > 0) emoteCd--;
         if (emoteTicks > 0) emoteTicks--;
         LivingEntity ct = getTarget();

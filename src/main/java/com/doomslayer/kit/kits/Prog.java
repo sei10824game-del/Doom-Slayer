@@ -36,6 +36,12 @@ public final class Prog {
     /** default per-family progression; kits with their own rules override SlayerKit#onKill */
     public static void familyKill(SlayerKit k, SlayerEntity e, LivingEntity v) {
         String n = k.getClass().getSimpleName();
+        ResourceFix.kill(k, e, v);
+        var cur = e.currentAttack(); // Doom's resource loop: glory kills drop health, chainsaw kills drop armour
+        if ((n.startsWith("Doom") || n.startsWith("Brutal") || n.startsWith("DarkAges")) && cur != null) {
+            if (cur.id.startsWith("glory") || cur.id.startsWith("fatality")) { e.heal(e.getMaxHealth() * 0.25f); say(e, "Glory kill: health restored", 0x40ff60); }
+            else if (cur.id.startsWith("chainsaw")) { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 1)); e.heal(e.getMaxHealth() * 0.1f); say(e, "Chainsaw: armour + ammo", 0xffc040); }
+        }
         if (n.startsWith("Doom") || n.startsWith("Brutal") || n.startsWith("DarkAges")) { // Praetor suit / Argent upgrades from tough demons
             if (strong(v) && add(e, "pg_pts", 1) % 3 == 0) { growHp(e, 0.08); growDmg(e, 0.05f); say(e, "Praetor upgrade! (HP +8%, damage +5%)", 0xff6020); }
         } else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) { // power nodes

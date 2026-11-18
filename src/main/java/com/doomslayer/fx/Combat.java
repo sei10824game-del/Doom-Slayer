@@ -42,7 +42,9 @@ public final class Combat {
             Vec3 m = t.position().add(0, t.getBbHeight() * 0.6, 0);
             Fx.flash(l, m, 0xfff0c0, 0.55f); Fx.burst(l, ParticleTypes.CRIT, m, 8, 0.15, 0.3);
         }
-        return t.hurt(s.damageSources().mobAttack(s), amount * s.kit.dmgMult * s.dmgScale());
+        boolean hurt = t.hurt(s.damageSources().mobAttack(s), amount * s.kit.dmgMult * s.dmgScale());
+        if (hurt) s.kit.onHit(s, t, amount);
+        return hurt;
     }
     public static void knock(Entity t, Vec3 from, double strength, double up) {
         Vec3 d = t.position().subtract(from); d = new Vec3(d.x, 0, d.z);

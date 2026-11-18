@@ -91,6 +91,7 @@ public abstract class ZeldaKits extends SlayerKit {
     /** Piece of Heart (4 = +HP), Heart Container from bosses (+HP, full heal), Master Sword power from boss trophies */
     @Override
     public void onKill(SlayerEntity e, LivingEntity v) {
+        ResourceFix.kill(this, e, v);
         if (Prog.boss(v)) { Prog.growHp(e, 0.15); e.setHealth(e.getMaxHealth()); Prog.growDmg(e, 0.06f); Prog.say(e, "Heart Container! Max HP up, fully restored", 0xff4060); }
         else if (Prog.strong(v)) Prog.piece(e, "zl_piece", 4, 0.1, "Piece of Heart", 0xff6080);
     }
