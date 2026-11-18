@@ -63,7 +63,8 @@ public final class Fx {
      * sweeping from fromDeg to toDeg (0 = straight ahead, + = to the viewer's left). Custom-rendered sweep that fades out.
      */
     public static void arc(ServerLevel l, Vec3 center, float yawDeg, float r, float fromDeg, float toDeg, float tiltDeg, int rgb, float size, int pts) {
-        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_SLASH, center, new Vec3(tiltDeg, 0, 0), rgb, Math.max(0.3f, size) * 0.5f + r * 0.0f, 6, new Vec3(yawDeg, fromDeg, toDeg), r);
+        float tilt = Math.abs(tiltDeg) < 40 ? tiltDeg + (fromDeg > toDeg ? 32 : -32) : tiltDeg; // flat sweeps read as a halo: lean the crescent into a diagonal cut
+        com.doomslayer.entity.SlayerProjectile.visual(l, com.doomslayer.entity.ProjStyle.VIS_SLASH, center, new Vec3(tilt, 0, 0), rgb, Math.max(0.3f, size) * 0.5f, 6, new Vec3(yawDeg, fromDeg, toDeg), r * 0.88f);
     }
     /** hex barrier flare facing 'normal' (block / parry / guard impact) */
     public static void shield(ServerLevel l, Vec3 p, Vec3 normal, int rgb, float size) {
