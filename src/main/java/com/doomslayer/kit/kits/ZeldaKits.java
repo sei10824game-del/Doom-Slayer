@@ -390,7 +390,7 @@ public abstract class ZeldaKits extends SlayerKit {
             // ---- hooks / utility ----
             case "hookshot": case "whip": case "switch_hook": return base(id, "hookshot", 4, 16, 90, 22, 2).tick((e, t, n) -> {
                 if (n >= 2 && n < 8 && t != null) Fx.beam(L(e), mz(e), mid(t), 0xb0b0b0, 0.3f, 0.3);
-                if (n == 7 && t != null) { Combat.damage(e, t, 3); Vec3 d = e.position().subtract(t.position()).normalize(); t.setDeltaMovement(d.x * 1.3, 0.25, d.z * 1.3); t.hurtMarked = true; snd(e, SoundEvents.CHAIN_BREAK, 0.9f, 1.4f); }
+                if (n == 7 && t != null) { Combat.damage(e, t, 3); t.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 7)); Vec3 d = e.position().subtract(t.position()).normalize();  t.setDeltaMovement(d.x * 1.3, 0.25, d.z * 1.3); t.hurtMarked = true; snd(e, SoundEvents.CHAIN_BREAK, 0.9f, 1.4f); }
                 if (n == 13) KU.melee(e, 3.4, 6, 0.4, 0.1, 0xffffff);
             }).anim(anim(K.THROW, 0, 1));
             case "clawshot": case "harpoon": return base(id, "hookshot", 5, 20, 110, 24, 2).tick((e, t, n) -> {

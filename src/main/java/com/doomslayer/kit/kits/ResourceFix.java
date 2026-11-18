@@ -18,7 +18,7 @@ public final class ResourceFix {
             ent("magic", 32, 32, 30, 1), ent("arrows", 30, 30, 40, 1), ent("bombs", 10, 10, 200, 1),
             ent("fervour", 100, 30, 0, 0), ent("chron", 10, 10, 80, 1), ent("stasis", 3, 3, 400, 1), ent("cube", 5, 0, 0, 0),
             ent("bullets", 200, 200, 25, 5), ent("shells", 20, 20, 160, 1), ent("rockets", 10, 10, 300, 1), ent("cells", 250, 250, 40, 10),
-            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("valor", 100, 0, 0, 0), ent("echo", 6, 6, 40, 1), ent("senergy", 100, 100, 30, 1), ent("musou", 100, 0, 0, 0), ent("tools", 6, 6, 600, 1));
+            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("valor", 100, 0, 0, 0), ent("echo", 6, 6, 40, 1), ent("senergy", 100, 100, 30, 1), ent("musou", 100, 0, 0, 0), ent("plasma", 100, 100, 10, 4), ent("stamina", 100, 100, 10, 6), ent("tools", 6, 6, 600, 1));
     private static Map.Entry<String, int[]> ent(String k, int max, int init, int every, int amt) { return Map.entry(k, new int[] {max, init, every, amt}); }
     private static final Map<String, Object[]> ZELDA = Map.ofEntries(
             e("fire_rod", "magic", 5), e("ice_rod", "magic", 5), e("cane_somaria", "magic", 8), e("bombos", "magic", 16), e("ether", "magic", 16), e("quake", "magic", 16),
@@ -49,6 +49,13 @@ public final class ResourceFix {
 
     public static void apply(SlayerKit kit, List<AttackDef> list) {
         String n = kit.getClass().getSimpleName();
+        if (isHalo(n)) for (AttackDef a : list) { // Covenant energy weapons run on an internal battery / overheat: heavy use locks them out until they cool
+            String id = a.id; if (id.contains("plasma") && !id.contains("grenade") || id.contains("needler") || id.contains("repeater") || id.contains("beam_rifle")) gate(a, "plasma", id.contains("dual") ? 40 : id.contains("overcharge") ? 50 : 25, null);
+        }
+        if (n.equals("SkywardSword")) for (AttackDef a : list) switch (a.id) { // stamina gauge: dashing, jumping and spinning drain it; empty = slowed and vulnerable
+            case "dash_attack", "jump_slash", "spin_attack", "clawshot" -> { gate(a, "stamina", 25, null); var os = a.start; a.onStart((e, t, k) -> { os.run(e, t, k); if (get(e, "stamina") <= 0) { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 60, 1)); Prog.say(e, "Out of stamina", 0xf0d060); } }); }
+            default -> { }
+        }
         if (n.equals("EchoesZelda")) for (AttackDef a : list) switch (a.id) { // echoes cost triangles; the Swordfighter form runs on its own energy
             case "echo_boulder", "echo_tornado", "echo_sword_moblin", "echo_fire_wizzrobe", "echo_ice_wizzrobe" -> gate(a, "echo", 2, "No more echo triangles");
             case "echo_fire_keese", "echo_octorok", "magic_shot" -> gate(a, "echo", 1, null);
@@ -155,12 +162,14 @@ public final class ResourceFix {
         if (n.equals("TotK")) regen(e, "zonai", t);
         if (e.kit instanceof ZeldaKits) { regen(e, "magic", t); regen(e, "arrows", t); regen(e, "bombs", t); }
         else if (n.equals("ZeroKatana")) regen(e, "chron", t);
+        else if (n.equals("SkywardSword")) regen(e, "stamina", t);
         else if (n.equals("EchoesZelda")) { regen(e, "echo", t); regen(e, "senergy", t); }
         else if (n.equals("Omori")) { regen(e, "juice", t); if (e.getHealth() / e.getMaxHealth() < 0.3f && t % 40 == 20) add(e, "juice", 1); } // SAD recovers JUICE faster
         else if (n.equals("Hornet")) regen(e, "tools", t);
         else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) regen(e, "stasis", t);
         else if (isDoom(n)) { regen(e, "fuel", t); regen(e, "bullets", t); regen(e, "shells", t); regen(e, "rockets", t); regen(e, "cells", t); }
         else if (isHev(n)) regen(e, "battery", t);
+        if (isHalo(n)) regen(e, "plasma", t);
         if (isHalo(n)) { // shield recharge: starts 5 s after the last hit, refills in ~3 s
             var d = e.getPersistentData(); int max = shieldMax(e); int sh = get(e, "shield"); long delay = n.contains("Odst") ? 200 : 100;
             if (!d.contains("rs_shield")) d.putInt("rs_shield", max);
