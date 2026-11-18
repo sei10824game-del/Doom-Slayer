@@ -92,9 +92,18 @@ public abstract class ZeldaKits extends SlayerKit {
     @Override
     public void onKill(SlayerEntity e, LivingEntity v) {
         ResourceFix.kill(this, e, v);
+        if (this instanceof LoZ && Prog.boss(v) && Prog.get(e, "zl_ring") < 2) Prog.say(e, Prog.add(e, "zl_ring", 1) == 1 ? "Blue Ring! Damage taken -25%" : "Red Ring! Damage taken -50%", 0x4080ff);
+        if (this instanceof ZeldaII) { // Zelda II experience levels: attack / life improve
+            var d = e.getPersistentData(); int exp = d.getInt("z2_exp") + Math.max(1, (int) (v.getMaxHealth() / 2)), lv = Math.max(1, d.getInt("z2_lv")); int[] T = {0, 10, 40, 100, 200, 400, 700, 1100, 1600};
+            d.putInt("z2_exp", exp); int old = lv; while (lv < 8 && exp >= T[lv]) lv++;
+            if (lv > old) { d.putInt("z2_lv", lv); Prog.growHp(e, 0.05 * (lv - old)); Prog.growDmg(e, 0.06f * (lv - old)); Prog.say(e, "Level up! (Lv " + lv + ")", 0xffe070); } else if (d.getInt("z2_lv") == 0) d.putInt("z2_lv", 1);
+        }
         if (Prog.boss(v)) { Prog.growHp(e, 0.15); e.setHealth(e.getMaxHealth()); Prog.growDmg(e, 0.06f); Prog.say(e, "Heart Container! Max HP up, fully restored", 0xff4060); }
         else if (Prog.strong(v)) Prog.piece(e, "zl_piece", 4, 0.1, "Piece of Heart", 0xff6080);
     }
+
+    /** Zelda 1: Blue / Red Ring (boss spoils) halve incoming damage step by step */
+    private float ringScale(SlayerEntity e) { return this instanceof LoZ ? Math.max(0.5f, 1f - 0.25f * Prog.get(e, "zl_ring")) : 1f; }
 
     @Override public boolean preventDeath(SlayerEntity e) { // bottled fairy / Mipha's Grace
         var d = e.getPersistentData(); int used = d.getInt("zl_fairy");
@@ -109,7 +118,7 @@ public abstract class ZeldaKits extends SlayerKit {
     /** Shield: perfect-parry window first; otherwise hits from the front are blocked (projectiles fully, melee mostly). */
     @Override
     public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) {
-        float r = KU.defend(e, src, amt);
+        float r = KU.defend(e, src, amt) * ringScale(e);
         if (r <= 0 || look.noShield) return r;
         net.minecraft.world.entity.Entity from = src.getDirectEntity() != null ? src.getDirectEntity() : src.getEntity();
         if (from == null || src.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR)) return r;

@@ -18,7 +18,7 @@ public final class ResourceFix {
             ent("magic", 32, 32, 30, 1), ent("arrows", 30, 30, 40, 1), ent("bombs", 10, 10, 200, 1),
             ent("fervour", 100, 30, 0, 0), ent("chron", 10, 10, 80, 1), ent("stasis", 3, 3, 400, 1), ent("cube", 5, 0, 0, 0),
             ent("bullets", 200, 200, 25, 5), ent("shells", 20, 20, 160, 1), ent("rockets", 10, 10, 300, 1), ent("cells", 250, 250, 40, 10),
-            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("valor", 100, 0, 0, 0), ent("echo", 6, 6, 40, 1), ent("senergy", 100, 100, 30, 1), ent("musou", 100, 0, 0, 0), ent("plasma", 100, 100, 10, 4), ent("stamina", 100, 100, 10, 6), ent("tools", 6, 6, 600, 1));
+            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("valor", 100, 0, 0, 0), ent("echo", 6, 6, 40, 1), ent("senergy", 100, 100, 30, 1), ent("musou", 100, 0, 0, 0), ent("plasma", 100, 100, 10, 4), ent("grabber", 100, 100, 10, 3), ent("stamina", 100, 100, 10, 6), ent("tools", 6, 6, 600, 1));
     private static Map.Entry<String, int[]> ent(String k, int max, int init, int every, int amt) { return Map.entry(k, new int[] {max, init, every, amt}); }
     private static final Map<String, Object[]> ZELDA = Map.ofEntries(
             e("fire_rod", "magic", 5), e("ice_rod", "magic", 5), e("cane_somaria", "magic", 8), e("bombos", "magic", 16), e("ether", "magic", 16), e("quake", "magic", 16),
@@ -55,6 +55,18 @@ public final class ResourceFix {
         if (n.equals("SkywardSword")) for (AttackDef a : list) switch (a.id) { // stamina gauge: dashing, jumping and spinning drain it; empty = slowed and vulnerable
             case "dash_attack", "jump_slash", "spin_attack", "clawshot" -> { gate(a, "stamina", 25, null); var os = a.start; a.onStart((e, t, k) -> { os.run(e, t, k); if (get(e, "stamina") <= 0) { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 60, 1)); Prog.say(e, "Out of stamina", 0xf0d060); } }); }
             default -> { }
+        }
+        if (n.equals("BrutalDoomMarine")) { // Brutal Doom extras: flamethrower, grenade launcher, stealth kills
+            list.add(gate(AttackDef.of("flamethrower").range(1, 8).cd(100).weight(2).dur(44)
+                    .tick((e, t, k) -> { if (k >= 6 && k < 38) { net.minecraft.world.phys.Vec3 m = com.doomslayer.fx.Combat.muzzle(e, 1.1, 0.3, 0), d = e.getViewVector(1f); for (int i = 1; i <= 6; i++) com.doomslayer.fx.Fx.burst((net.minecraft.server.level.ServerLevel) e.level(), net.minecraft.core.particles.ParticleTypes.FLAME, m.add(d.scale(i * 1.1)), 3, 0.25, 0.02); if (k % 4 == 0) for (LivingEntity f : com.doomslayer.fx.Combat.cone(e, 7, 24)) { com.doomslayer.fx.Combat.damage(e, f, 3); f.setSecondsOnFire(5); } } })
+                    .anim(com.doomslayer.kit.kits.KU.gunAnim(new int[] {6, 38}, 44, 0, true)), "cells", 30, null));
+            list.add(gate(AttackDef.of("grenade_launcher").range(5, 24).cd(90).weight(2).dur(24)
+                    .tick((e, t, k) -> { if (k == 8) { com.doomslayer.fx.Combat.shoot(e, com.doomslayer.entity.ProjStyle.GRENADE, com.doomslayer.fx.Combat.muzzle(e, 1.1, 0.3, 0), KU.aim(e, t, 0.01).add(0, 0.12, 0).normalize(), 1.1, 12f); com.doomslayer.fx.Combat.sound(e, net.minecraft.sounds.SoundEvents.FIREWORK_ROCKET_LAUNCH, 1f, 0.7f); } })
+                    .anim(com.doomslayer.kit.kits.KU.gunAnim(new int[] {8}, 24, 2, false)), "rockets", 1, null));
+            list.add(AttackDef.of("stealth_kill").range(0, 3.4f).cd(40).weight(9).dur(20)
+                    .when((e, t) -> !Prog.boss(t) && t instanceof net.minecraft.world.entity.Mob m && m.getTarget() == null)
+                    .tick((e, t, k) -> { if (k == 8 && t != null) { com.doomslayer.fx.Fx.dustBurst((net.minecraft.server.level.ServerLevel) e.level(), 0x8a0303, 1.4f, t.position().add(0, 1, 0), 24, 0.4); com.doomslayer.fx.Combat.damage(e, t, t.getHealth() + 50); } })
+                    .anim(com.doomslayer.kit.kits.KU::stabAnim));
         }
         if (n.equals("EchoesZelda")) for (AttackDef a : list) switch (a.id) { // echoes cost triangles; the Swordfighter form runs on its own energy
             case "echo_boulder", "echo_tornado", "echo_sword_moblin", "echo_fire_wizzrobe", "echo_ice_wizzrobe" -> gate(a, "echo", 2, "No more echo triangles");
@@ -122,6 +134,7 @@ public final class ResourceFix {
                 default -> { }
             }
             if (n.equals("Hornet") && (a.id.equals("tri_pin") || a.id.equals("straight_pin") || a.id.equals("caltrops") || a.id.equals("flintslate"))) gate(a, "tools", 1, "Tools spent - they refill on kills and rest"); // red tools have limited charges
+            if (n.equals("Doom3RoeMarine") && a.id.equals("grabber")) gate(a, "grabber", 50, null); // the Grabber has a limited charge
             if (n.startsWith("Blasphemous")) switch (a.id) {
                 case "debla_of_the_lights", "taranto_chant" -> gate(a, "fervour", 40, null); case "lorquiana", "tiento_thorns", "blood_miracle" -> gate(a, "fervour", 30, null); case "verdiales_parry" -> gate(a, "fervour", 20, null);
                 default -> { }

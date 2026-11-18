@@ -128,6 +128,7 @@ final class KU {
     }
     /** one swing with impact at frame h (0..1 of the attack) */
     static void swing(Pose p, float t, float h, float wind) { strikePose(p, remap(t, h), 0, Math.min(1.2f, wind)); }
+    static void stabAnim(Pose p, float t, float a) { stab(p, t, 8 / 20f); }
     static void stab(Pose p, float t, float h) { strikePose(p, remap(t, h), 3, 1f); }
     static float remap(float t, float h) { return t < h ? 0.47f * t / Math.max(h, 0.01f) : 0.47f + 0.53f * (t - h) / Math.max(1 - h, 0.01f); }
     /** attack window for several hits: each hit gets its own wind-up/strike/recover (alternating kinds) */
