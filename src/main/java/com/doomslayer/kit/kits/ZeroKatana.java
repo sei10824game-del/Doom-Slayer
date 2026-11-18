@@ -35,6 +35,16 @@ public class ZeroKatana extends SlayerKit {
         idleWeaponR = "katana";
     }
 
+    /** REWIND: when Zero dies the tape rewinds - full health, enemies frozen for a breath (3 times) */
+    @Override
+    public boolean preventDeath(SlayerEntity e) {
+        int used = Prog.get(e, "kz_rewind"); if (used >= 3) return false;
+        Prog.add(e, "kz_rewind", 1); e.setHealth(e.getMaxHealth()); e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 40, 4));
+        for (LivingEntity f : Combat.around(e, e.position(), 10)) f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 50, 6));
+        Fx.aura(L(e), e.position(), PINK, e.getBbHeight() * 1.3f, e.getBbWidth(), 30); Fx.ring(L(e), e.position().add(0, 0.1, 0), 4f, NEON, 1.6f, 28); snd(e, SoundEvents.BEACON_DEACTIVATE, 1f, 0.5f);
+        Prog.say(e, "REWIND (" + (2 - used) + " left)", PINK); return true;
+    }
+
     @Override public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return KU.defend(e, src, amt); }
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.2f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.8f; p.bodyX += 0.06f; }

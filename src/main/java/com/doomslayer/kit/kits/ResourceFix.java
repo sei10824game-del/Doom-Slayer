@@ -18,7 +18,7 @@ public final class ResourceFix {
             ent("magic", 32, 32, 30, 1), ent("arrows", 30, 30, 40, 1), ent("bombs", 10, 10, 200, 1),
             ent("fervour", 100, 30, 0, 0), ent("chron", 10, 10, 80, 1), ent("stasis", 3, 3, 400, 1), ent("cube", 5, 0, 0, 0),
             ent("bullets", 200, 200, 25, 5), ent("shells", 20, 20, 160, 1), ent("rockets", 10, 10, 300, 1), ent("cells", 250, 250, 40, 10),
-            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1));
+            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1));
     private static Map.Entry<String, int[]> ent(String k, int max, int init, int every, int amt) { return Map.entry(k, new int[] {max, init, every, amt}); }
     private static final Map<String, Object[]> ZELDA = Map.ofEntries(
             e("fire_rod", "magic", 5), e("ice_rod", "magic", 5), e("cane_somaria", "magic", 8), e("bombos", "magic", 16), e("ether", "magic", 16), e("quake", "magic", 16),
@@ -59,6 +59,11 @@ public final class ResourceFix {
                 else if (id.contains("plasma") || id.contains("heat") || id.contains("microwave") || id.contains("gauss") || id.contains("ballista") || id.contains("precision") || id.contains("vortex") || id.contains("static") || id.contains("unmaker") || id.contains("accelerator") || id.contains("cycler") || id.contains("pulverizer")) gate(a, "cells", 25, null);
                 else if (id.contains("chaingun") || id.contains("minigun") || id.contains("machine") || id.contains("assault") || id.contains("full_auto") || id.contains("pistol") || id.contains("turret") || id.contains("har_") || id.contains("scope") || id.equals("pistols_akimbo") || id.contains("heavy_mg")) gate(a, "bullets", 25, null);
             }
+            if (n.equals("TotK")) switch (a.id) { // Zonai energy cells power the gadgets
+                case "recall", "zonai_beam", "zonai_flame", "rocket_dash" -> gate(a, "zonai", 3, "Zonai energy depleted"); case "ultrahand_throw", "ascend" -> gate(a, "zonai", 2, null); case "fuse_slam" -> gate(a, "zonai", 1, null);
+                default -> { }
+            }
+            if ((n.equals("Doom2016Slayer") || n.equals("DoomEternalSlayer") || n.equals("Doom2005Grimm") || n.equals("BrutalDoomMarine")) && a.id.startsWith("chainsaw")) gate(a, "fuel", 1, null); // chainsaw fuel
             if (n.startsWith("Blasphemous")) switch (a.id) {
                 case "debla_of_the_lights", "taranto_chant" -> gate(a, "fervour", 40, null); case "lorquiana", "tiento_thorns", "blood_miracle" -> gate(a, "fervour", 30, null); case "verdiales_parry" -> gate(a, "fervour", 20, null);
                 default -> { }
@@ -94,10 +99,11 @@ public final class ResourceFix {
     /** per-tick regeneration (server) */
     public static void tick(SlayerEntity e) {
         String n = e.kit.getClass().getSimpleName(); int t = e.tickCount;
+        if (n.equals("TotK")) regen(e, "zonai", t);
         if (e.kit instanceof ZeldaKits) { regen(e, "magic", t); regen(e, "arrows", t); regen(e, "bombs", t); }
         else if (n.equals("ZeroKatana")) regen(e, "chron", t);
         else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) regen(e, "stasis", t);
-        else if (isDoom(n)) { regen(e, "bullets", t); regen(e, "shells", t); regen(e, "rockets", t); regen(e, "cells", t); }
+        else if (isDoom(n)) { regen(e, "fuel", t); regen(e, "bullets", t); regen(e, "shells", t); regen(e, "rockets", t); regen(e, "cells", t); }
         else if (isHev(n)) regen(e, "battery", t);
         if (isHalo(n)) { // shield recharge: starts 5 s after the last hit, refills in ~3 s
             var d = e.getPersistentData(); int max = (int) (e.getMaxHealth() * 0.7); int sh = get(e, "shield");
@@ -117,6 +123,7 @@ public final class ResourceFix {
         if (n.startsWith("Blasphemous")) add(e, "fervour", 8);
         if (isDoom(n)) { boolean big = Prog.strong(v); add(e, "bullets", big ? 40 : 15); add(e, "shells", big ? 4 : 1); add(e, "rockets", big ? 2 : 0); add(e, "cells", big ? 60 : 15); }
         if (isHev(n)) add(e, "battery", 10);
+        if (n.equals("TotK") && Prog.strong(v)) add(e, "zonai", 2);
         if (n.equals("ZeroKatana")) add(e, "chron", 1);
         if (n.equals("Doom3Marine") || n.equals("DoomRpgMarine") || n.equals("Doom3RoeMarine")) { add(e, "cube", 1); if (get(e, "cube") == 5) Prog.say(e, "Soul Cube charged", 0xff4a2a); }
     }

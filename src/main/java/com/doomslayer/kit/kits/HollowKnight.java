@@ -37,6 +37,15 @@ public class HollowKnight extends SlayerKit {
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.3f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.7f; p.bodyX += 0.05f; }
 
+    /** Death: the Knight is lost to the Shade and wakes at the bench - back with half health but no SOUL (every 2.5 minutes) */
+    @Override
+    public boolean preventDeath(SlayerEntity e) {
+        long now = e.level().getGameTime(); var d = e.getPersistentData(); if (now < d.getLong("hk_shadeCd")) return false;
+        d.putLong("hk_shadeCd", now + 3000); e.setHealth(e.getMaxHealth() * 0.5f); d.putInt("hk_soul", 0); e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 4));
+        Fx.dustBurst(KU.L(e), 0x101018, 1.8f, e.position().add(0, 1, 0), 40, 0.7); Fx.ring(KU.L(e), e.position().add(0, 0.1, 0), 3f, 0x80a0ff, 1.5f, 24); snd(e, SoundEvents.SOUL_ESCAPE, 1f, 0.6f);
+        Prog.say(e, "Lost to the Shade... awake at the bench", 0x80a0ff); return true;
+    }
+
     // ---- Charms: found from bosses/strong foes, auto-equipped while notches (3 + 1 per mask-shard set) allow ----
     static final String[][] CHARMS = {{"strength", "2", "Fragile Strength: nail damage up"}, {"soul_catcher", "2", "Soul Catcher: nail hits give more SOUL"}, {"spell_twister", "2", "Spell Twister: spells cost less"},
             {"quick_focus", "3", "Quick Focus: Focus heals faster"}, {"lifeblood", "2", "Lifeblood Heart: a protective mask"}, {"grubsong", "1", "Grubsong: taking damage gives SOUL"}};

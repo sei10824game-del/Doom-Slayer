@@ -33,6 +33,18 @@ public final class Prog {
         say(e, what + " " + (n % per) + "/" + per, rgb); return false;
     }
 
+    /** Doom power-ups: Quad Damage, Haste, Berserk, Invulnerability, Soul Sphere */
+    static void powerup(SlayerEntity e) {
+        long now = e.level().getGameTime(); var d = e.getPersistentData();
+        switch (e.getRandom().nextInt(5)) {
+            case 0 -> { d.putLong("ds_quad", now + 300); say(e, "QUAD DAMAGE!", 0xc040ff); }
+            case 1 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 400, 2)); say(e, "HASTE!", 0x40ffe0); }
+            case 2 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_BOOST, 400, 2)); e.heal(e.getMaxHealth() * 0.2f); say(e, "BERSERK!", 0xff2020); }
+            case 3 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 4)); say(e, "INVULNERABILITY!", 0xffffff); }
+            default -> { e.setHealth(e.getMaxHealth()); Prog.growHp(e, 0.02); say(e, "SOUL SPHERE! Health restored", 0x4080ff); }
+        }
+    }
+
     /** default per-family progression; kits with their own rules override SlayerKit#onKill */
     public static void familyKill(SlayerKit k, SlayerEntity e, LivingEntity v) {
         String n = k.getClass().getSimpleName();
@@ -42,6 +54,8 @@ public final class Prog {
             if (cur.id.startsWith("glory") || cur.id.startsWith("fatality")) { e.heal(e.getMaxHealth() * 0.25f); say(e, "Glory kill: health restored", 0x40ff60); }
             else if (cur.id.startsWith("chainsaw")) { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 1)); e.heal(e.getMaxHealth() * 0.1f); say(e, "Chainsaw: armour + ammo", 0xffc040); }
         }
+        if ((n.startsWith("Doom") || n.startsWith("Brutal") || n.startsWith("DarkAges")) && strong(v) && e.getRandom().nextFloat() < 0.25f) powerup(e); // tough demons drop power-ups
+        if (cur != null && cur.id.startsWith("chainsaw")) ResourceFix.add(e, "fuel", 1);
         if (n.startsWith("Doom") || n.startsWith("Brutal") || n.startsWith("DarkAges")) { // Praetor suit / Argent upgrades from tough demons
             if (strong(v) && add(e, "pg_pts", 1) % 3 == 0) { growHp(e, 0.08); growDmg(e, 0.05f); say(e, "Praetor upgrade! (HP +8%, damage +5%)", 0xff6020); }
         } else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) { // power nodes
