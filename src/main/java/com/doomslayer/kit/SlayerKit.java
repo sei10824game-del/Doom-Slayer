@@ -62,4 +62,7 @@ public abstract class SlayerKit {
 
     /** SERVER: this slayer's attack just damaged 'victim' */
     public void onHit(SlayerEntity e, net.minecraft.world.entity.LivingEntity victim, float dmg) { com.doomslayer.kit.kits.ResourceFix.hit(e); }
+
+    /** SERVER: adjust the damage this slayer is about to deal (instant kills, berserk...). */
+    public float outgoing(SlayerEntity e, net.minecraft.world.entity.LivingEntity victim, float amt) { return com.doomslayer.kit.kits.ResourceFix.outgoing(e, victim, amt); }
 }

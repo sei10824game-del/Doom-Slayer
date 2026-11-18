@@ -39,7 +39,7 @@ public final class Prog {
         switch (e.getRandom().nextInt(5)) {
             case 0 -> { d.putLong("ds_quad", now + 300); say(e, "QUAD DAMAGE!", 0xc040ff); }
             case 1 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 400, 2)); say(e, "HASTE!", 0x40ffe0); }
-            case 2 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_BOOST, 400, 2)); e.heal(e.getMaxHealth() * 0.2f); say(e, "BERSERK!", 0xff2020); }
+            case 2 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_BOOST, 400, 2)); e.heal(e.getMaxHealth() * 0.2f); d.putLong("ds_berserk", now + 300); say(e, "BERSERK! Every melee blow kills", 0xff2020); }
             case 3 -> { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 200, 4)); say(e, "INVULNERABILITY!", 0xffffff); }
             default -> { e.setHealth(e.getMaxHealth()); Prog.growHp(e, 0.02); say(e, "SOUL SPHERE! Health restored", 0x4080ff); }
         }
