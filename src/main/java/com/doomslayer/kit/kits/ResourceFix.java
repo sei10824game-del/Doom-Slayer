@@ -56,6 +56,27 @@ public final class ResourceFix {
             case "dash_attack", "jump_slash", "spin_attack", "clawshot" -> { gate(a, "stamina", 25, null); var os = a.start; a.onStart((e, t, k) -> { os.run(e, t, k); if (get(e, "stamina") <= 0) { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 60, 1)); Prog.say(e, "Out of stamina", 0xf0d060); } }); }
             default -> { }
         }
+        if (n.equals("ZeroKatana")) { // more of Zero's toolkit: wall kick, item barrage
+            list.add(AttackDef.of("wall_kick").range(2, 8).cd(100).weight(2).dur(24)
+                    .tick((e, t, k) -> { if (k == 3) { net.minecraft.world.phys.Vec3 f = e.getViewVector(1f); e.setDeltaMovement(f.x * 0.8, 0.55, f.z * 0.8); e.hurtMarked = true; } if (k == 11) { for (LivingEntity f : com.doomslayer.fx.Combat.cone(e, 3.4, 60)) { com.doomslayer.fx.Combat.damage(e, f, 9); com.doomslayer.fx.Combat.knock(f, e.position(), 1.2, 0.35); } com.doomslayer.fx.Fx.ring((net.minecraft.server.level.ServerLevel) e.level(), e.position().add(0, 0.5, 0), 2f, 0x40e8ff, 1.4f, 18); } })
+                    .anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, .1f, .8f)); p.rLegX = -1.6f * c; p.lLegX = 0.4f * c; p.bodyX -= 0.4f * c; p.rootY += 1.2f * c; }));
+            list.add(AttackDef.of("item_barrage").range(4, 16).cd(120).weight(1).dur(26)
+                    .tick((e, t, k) -> { if (k == 6 || k == 11 || k == 16) com.doomslayer.fx.Combat.shoot(e, ZeroKatana.BOTTLE, com.doomslayer.fx.Combat.muzzle(e, 1.1, 0.3, 0), KU.aim(e, t, 0.08).add(0, 0.05, 0).normalize(), 1.4, 6f); })
+                    .anim(KU::throwAnimT));
+        }
+        if (n.equals("Chara")) {
+            list.add(AttackDef.of("erase").range(0, 12).cd(1200).weight(1).dur(50).noLos()
+                    .tick((e, t, k) -> { var l = (net.minecraft.server.level.ServerLevel) e.level(); if (k < 30) com.doomslayer.fx.Fx.dustBurst(l, 0xff2020, 1.4f, e.position().add(0, 1.2, 0), 6, 1.5 - k * 0.04);
+                        if (k == 32) { for (LivingEntity f : com.doomslayer.fx.Combat.around(e, e.position(), 11)) { com.doomslayer.fx.Combat.damage(e, f, Math.max(10, f.getHealth() * 0.7f)); com.doomslayer.fx.Fx.flash(l, f.position().add(0, f.getBbHeight() * 0.6, 0), 0xff2020, 1.2f); } com.doomslayer.fx.Fx.ring(l, e.position().add(0, 0.2, 0), 11f, 0xff2020, 1.8f, 40); com.doomslayer.fx.Fx.sound(l, e.position(), net.minecraft.sounds.SoundEvents.WARDEN_SONIC_BOOM, 1f, 0.5f); } })
+                    .anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, .05f, .9f)); p.rArmX = -3f * c; p.lArmX = -3f * c; p.headX -= 0.4f * c; p.rootY += 0.5f * c; }));
+            list.add(AttackDef.of("butterscotch_pie").range(0, 14).cd(900).weight(1).dur(30).noLos().when((e, t) -> e.getHealth() < e.getMaxHealth() * 0.6f)
+                    .tick((e, t, k) -> { if (k == 14) { e.heal(e.getMaxHealth() * 0.45f); com.doomslayer.fx.Fx.aura((net.minecraft.server.level.ServerLevel) e.level(), e.position(), 0xffe070, e.getBbHeight() * 1.1f, e.getBbWidth(), 24); com.doomslayer.fx.Fx.sound((net.minecraft.server.level.ServerLevel) e.level(), e.position(), net.minecraft.sounds.SoundEvents.GENERIC_EAT, 1f, 1f); } })
+                    .anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, .1f, .9f)); p.rArmX = -1.9f * c; p.headX -= 0.2f * c; }));
+        }
+        if (n.equals("Siffrin")) list.add(AttackDef.of("dodge").range(0, 10).cd(80).weight(2).dur(14).noLos().noFace()
+                .when((e, t) -> !com.doomslayer.fx.Combat.around(e, e.position(), 5).isEmpty())
+                .tick((e, t, k) -> { if (k == 1) { e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 10, 4, false, false)); net.minecraft.world.phys.Vec3 f = e.getViewVector(1f); e.setDeltaMovement(-f.x * 0.8, 0.1, -f.z * 0.8); e.hurtMarked = true; } })
+                .anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, 0, 1)); p.rootRoll += 0.4f * c; p.rootY -= 1f * c; p.bodyX -= 0.4f * c; }));
         if (n.equals("BrutalDoomMarine")) { // Brutal Doom extras: flamethrower, grenade launcher, stealth kills
             list.add(gate(AttackDef.of("flamethrower").range(1, 8).cd(100).weight(2).dur(44)
                     .tick((e, t, k) -> { if (k >= 6 && k < 38) { net.minecraft.world.phys.Vec3 m = com.doomslayer.fx.Combat.muzzle(e, 1.1, 0.3, 0), d = e.getViewVector(1f); for (int i = 1; i <= 6; i++) com.doomslayer.fx.Fx.burst((net.minecraft.server.level.ServerLevel) e.level(), net.minecraft.core.particles.ParticleTypes.FLAME, m.add(d.scale(i * 1.1)), 3, 0.25, 0.02); if (k % 4 == 0) for (LivingEntity f : com.doomslayer.fx.Combat.cone(e, 7, 24)) { com.doomslayer.fx.Combat.damage(e, f, 3); f.setSecondsOnFire(5); } } })

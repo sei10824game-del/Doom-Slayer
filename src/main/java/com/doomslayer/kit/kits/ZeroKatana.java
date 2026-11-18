@@ -24,7 +24,7 @@ import net.minecraft.world.phys.Vec3;
 /** Zero (Katana ZERO): the Dragon. Chronos slow-motion, dash slashes, thrown objects. */
 public class ZeroKatana extends SlayerKit {
     static final int NEON = 0x40e8ff, PINK = 0xff3090;
-    static final ProjStyle BOTTLE = ProjStyle.make().color(0x60b060).size(0.25f).life(40).gravity(0.03).trail(ParticleTypes.CRIT);
+    public static final ProjStyle BOTTLE = ProjStyle.make().color(0x60b060).size(0.25f).life(40).gravity(0.03).trail(ParticleTypes.CRIT);
     static final ProjStyle KNIFE = ProjStyle.make().color(0xd0d0d0).size(0.2f).life(40).pierce(1).trail(ParticleTypes.CRIT);
 
     public ZeroKatana() {
