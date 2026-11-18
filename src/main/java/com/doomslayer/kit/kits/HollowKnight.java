@@ -37,21 +37,35 @@ public class HollowKnight extends SlayerKit {
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.3f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.7f; p.bodyX += 0.05f; }
 
+    // ---- Charms: found from bosses/strong foes, auto-equipped while notches (3 + 1 per mask-shard set) allow ----
+    static final String[][] CHARMS = {{"strength", "2", "Fragile Strength: nail damage up"}, {"soul_catcher", "2", "Soul Catcher: nail hits give more SOUL"}, {"spell_twister", "2", "Spell Twister: spells cost less"},
+            {"quick_focus", "3", "Quick Focus: Focus heals faster"}, {"lifeblood", "2", "Lifeblood Heart: a protective mask"}, {"grubsong", "1", "Grubsong: taking damage gives SOUL"}};
+    static boolean charm(SlayerEntity e, String id) { return e.getPersistentData().getBoolean("hk_eq_" + id); }
+    private static void findCharm(SlayerEntity e) {
+        var d = e.getPersistentData(); int notches = 3 + Prog.get(e, "hk_shard") / 4;
+        for (String[] c : CHARMS) { if (d.getBoolean("hk_own_" + c[0])) continue; d.putBoolean("hk_own_" + c[0], true); Prog.say(e, "Charm found - " + c[2], 0xa0c0ff);
+            int used = 0; for (String[] x : CHARMS) if (charm(e, x[0])) used += Integer.parseInt(x[1]);
+            if (used + Integer.parseInt(c[1]) <= notches) { d.putBoolean("hk_eq_" + c[0], true); if (c[0].equals("strength")) Prog.growDmg(e, 0.25f); if (c[0].equals("lifeblood")) Prog.growHp(e, 0.1); }
+            return; }
+    }
+    @Override
+    public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { if (charm(e, "grubsong") && amt > 0) soul(e, 15); return amt; }
+
     /** Mask Shards (4 = +1 mask), Vessel Fragments (3 = bigger soul meter) and Pale Ore nail upgrades from bosses */
     @Override
     public void onKill(SlayerEntity e, LivingEntity v) {
         if (Prog.strong(v)) { Prog.piece(e, "hk_shard", 4, 0.1, "Mask Shard", 0xf0f4ff); if (Prog.get(e, "hk_shard") % 2 == 0) Prog.piece(e, "hk_vessel", 3, 0.0, "Vessel Fragment", 0x80c0ff); }
         if (Prog.boss(v)) { int n = Prog.add(e, "hk_nail", 1); Prog.growDmg(e, 0.12f); Prog.say(e, "Nail upgraded (Pale Ore " + n + ")", 0xffffff); }
-        soul(e, 11);
+        soul(e, 11); if (Prog.strong(v) && e.getRandom().nextFloat() < (Prog.boss(v) ? 1f : 0.35f)) findCharm(e);
     }
 
     /** SOUL meter 0..99: filled by nail hits, spent by spells and Focus */
     static int soul(SlayerEntity e) { return e.getPersistentData().getInt("hk_soul"); }
-    static void soul(SlayerEntity e, int add) { if (add != 0) e.getPersistentData().putInt("hk_soul", Math.max(0, Math.min(99, soul(e) + add))); }
+    static void soul(SlayerEntity e, int add) { if (add > 0 && charm(e, "soul_catcher")) add = add * 3 / 2; if (add != 0) e.getPersistentData().putInt("hk_soul", Math.max(0, Math.min(99, soul(e) + add))); }
 
     @Override
     public void passive(SlayerEntity e) { // Focus: spend 33 soul to heal while safe
-        if (e.tickCount % 120 == 0 && e.getHealth() < e.getMaxHealth() && soul(e) >= 33 && Combat.around(e, e.position(), 7).isEmpty()) {
+        if (e.tickCount % (charm(e, "quick_focus") ? 70 : 120) == 0 && e.getHealth() < e.getMaxHealth() && soul(e) >= 33 && Combat.around(e, e.position(), 7).isEmpty()) {
             soul(e, -33); e.heal(8); Fx.burst(KU.L(e), ParticleTypes.END_ROD, e.position().add(0, 1, 0), 10, 0.3, 0.05); snd(e, SoundEvents.AMETHYST_BLOCK_CHIME, 0.6f, 1.6f);
         }
     }
@@ -162,7 +176,7 @@ public class HollowKnight extends SlayerKit {
 
     private void gateSpells(List<AttackDef> out) {
         for (AttackDef a : out) if (List.of("vengeful_spirit", "shade_soul", "desolate_dive", "howling_wraiths").contains(a.id)) {
-            a.when((e, t) -> soul(e) >= 33); a.onStart((e, t, n) -> soul(e, -33));
+            a.when((e, t) -> soul(e) >= (charm(e, "spell_twister") ? 24 : 33)); a.onStart((e, t, n) -> soul(e, -(charm(e, "spell_twister") ? 24 : 33)));
         }
     }
 

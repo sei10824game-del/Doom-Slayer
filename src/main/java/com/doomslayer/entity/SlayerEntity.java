@@ -272,8 +272,10 @@ public class SlayerEntity extends PathfinderMob {
                 net.minecraft.world.phys.Vec3 dir = from != null ? from.position().subtract(position()).multiply(1, 0, 1) : getViewVector(1f).multiply(1, 0, 1);
                 dir = dir.lengthSqr() < 1e-4 ? getViewVector(1f) : dir.normalize();
                 if (guarded) com.doomslayer.fx.Fx.shield(sl, position().add(0, getBbHeight() * 0.6, 0).add(dir.scale(0.75)), dir, kit.eggSecondary, 0.95f * kit.scale);
-                if (halo || (res != null && res.getAmplifier() >= 3)) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f);
+                if ((halo && com.doomslayer.kit.kits.ResourceFix.shieldUp(this)) || (res != null && res.getAmplifier() >= 3)) com.doomslayer.fx.Fx.bodyShield(sl, position(), kit.eggSecondary, getBbHeight() * 1.08f, getBbWidth() * 1.1f);
             }
+            boolean shieldHeld = com.doomslayer.kit.kits.ResourceFix.shieldUp(this);
+            if (amt > 0) amt = com.doomslayer.kit.kits.ResourceFix.absorb(this, amt);
             if (amt <= 0) return false;
         }
         boolean r = super.hurt(src, amt);

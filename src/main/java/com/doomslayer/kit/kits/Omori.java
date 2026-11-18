@@ -71,6 +71,19 @@ public class Omori extends SlayerKit {
     }
 
     private void defineBase(List<AttackDef> out) {
+        // EMOTIONS: ANGRY (health 30-65%) hits harder, SAD (<30%) weeps and heals, HAPPY (>65%) sings and cheers allies
+        out.add(AttackDef.of("angry_strike").range(0, 3.4f).cd(50).weight(4).dur(20).weapon("knife")
+                .when((e, t) -> e.getHealth() / e.getMaxHealth() < 0.65f && e.getHealth() / e.getMaxHealth() >= 0.3f)
+                .tick((e, t, n) -> { if (n == 8) { slash(e, 85, -85, 15, 0xff2020); melee(e, 3.4, 16, 1.2, 0.3, 0xff2020); Fx.ring(L(e), e.position().add(0, 0.2, 0), 2.4f, 0xff2020, 1.5f, 20); snd(e, SoundEvents.PLAYER_ATTACK_CRIT, 1.1f, 0.6f); } })
+                .anim((p, t, a) -> KU.strikePose(p, KU.remap(t, 8 / 20f), 2, 1.2f)));
+        out.add(AttackDef.of("sad_cry").range(0, 10).cd(260).weight(2).dur(36).noLos()
+                .when((e, t) -> e.getHealth() / e.getMaxHealth() < 0.3f)
+                .tick((e, t, n) -> { if (n == 10) { e.heal(e.getMaxHealth() * 0.25f); e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 80, 2)); for (LivingEntity f : Combat.around(e, e.position(), 6)) f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 80, 2)); Fx.aura(L(e), e.position(), 0x6aa0ff, e.getBbHeight() * 1.2f, e.getBbWidth(), 34); snd(e, SoundEvents.AMBIENT_UNDERWATER_ENTER, 1f, 0.6f); } })
+                .anim((p, t, a) -> { float k = bump(win(t, .1f, .9f)); p.headX += 0.5f * k; p.rArmX = -1.4f * k; p.lArmX = -1.4f * k; p.rArmZ = 0.3f * k; p.lArmZ = -0.3f * k; p.rootY -= 0.6f * k; }));
+        out.add(AttackDef.of("happy_song").range(0, 10).cd(300).weight(1).dur(40).noLos()
+                .when((e, t) -> e.getHealth() / e.getMaxHealth() >= 0.65f)
+                .tick((e, t, n) -> { if (n == 10) { for (LivingEntity f : e.level().getEntitiesOfClass(LivingEntity.class, e.getBoundingBox().inflate(10), x -> x == e || x instanceof net.minecraft.world.entity.player.Player || x instanceof SlayerEntity)) { f.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 1)); f.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 100, 0)); } Fx.aura(L(e), e.position(), 0xffe070, e.getBbHeight() * 1.2f, e.getBbWidth(), 34); snd(e, SoundEvents.NOTE_BLOCK_CHIME.value(), 1f, 1.4f); } })
+                .anim((p, t, a) -> { float k = bump(win(t, .1f, .9f)); p.rArmX = -2.6f * k; p.lArmX = -2.6f * k; p.rArmZ = 0.5f * k; p.lArmZ = -0.5f * k; p.rootY += 0.3f * (float) Math.abs(Math.sin(t * 12)) * k; }));
         out.add(AttackDef.of("attack").range(0, 3f).cd(14).weight(3).dur(14).weapon("knife")
                 .tick((e, t, n) -> {
                     if (n == 3) snd(e, SoundEvents.PLAYER_ATTACK_SWEEP, 0.8f, 1.5f);

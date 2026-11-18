@@ -14,9 +14,12 @@ import net.minecraft.world.entity.LivingEntity;
 public final class ResourceFix {
     private ResourceFix() {}
     /** {max, initial, regenEveryTicks (0 = none), regenAmount} */
-    private static final Map<String, int[]> RES = Map.of(
-            "magic", new int[] {32, 32, 30, 1}, "arrows", new int[] {30, 30, 40, 1}, "bombs", new int[] {10, 10, 200, 1},
-            "fervour", new int[] {100, 30, 0, 0}, "chron", new int[] {10, 10, 80, 1}, "stasis", new int[] {3, 3, 400, 1}, "cube", new int[] {5, 0, 0, 0});
+    private static final Map<String, int[]> RES = Map.ofEntries(
+            ent("magic", 32, 32, 30, 1), ent("arrows", 30, 30, 40, 1), ent("bombs", 10, 10, 200, 1),
+            ent("fervour", 100, 30, 0, 0), ent("chron", 10, 10, 80, 1), ent("stasis", 3, 3, 400, 1), ent("cube", 5, 0, 0, 0),
+            ent("bullets", 200, 200, 25, 5), ent("shells", 20, 20, 160, 1), ent("rockets", 10, 10, 300, 1), ent("cells", 250, 250, 40, 10),
+            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1));
+    private static Map.Entry<String, int[]> ent(String k, int max, int init, int every, int amt) { return Map.entry(k, new int[] {max, init, every, amt}); }
     private static final Map<String, Object[]> ZELDA = Map.ofEntries(
             e("fire_rod", "magic", 5), e("ice_rod", "magic", 5), e("cane_somaria", "magic", 8), e("bombos", "magic", 16), e("ether", "magic", 16), e("quake", "magic", 16),
             e("din_fire", "magic", 12), e("farore_wind", "magic", 10), e("nayru_love", "magic", 16), e("thunder_spell", "magic", 12), e("fire_spell", "magic", 6), e("life_spell", "magic", 12),
@@ -48,6 +51,14 @@ public final class ResourceFix {
                     a.onStart((e, t, k) -> { os.run(e, t, k); int d = dur(e, w) - 1; e.getPersistentData().putInt(key, d); if (d == 0) Prog.say(e, "Your " + w + " broke!", 0xff8040); else if (d == 5) Prog.say(e, "Your " + w + " is about to break", 0xffd060); });
                 }
             }
+            if (isDoom(n)) { // Doom: ammo pools per weapon class
+                String id = a.id;
+                if (id.contains("shotgun") || id.equals("super_shotgun") || id.contains("scatter")) gate(a, "shells", id.contains("super") || id.contains("double") ? 2 : 1, null);
+                else if (id.contains("rocket") || id.contains("micro") || id.contains("lock_on") || id.contains("missile") || id.contains("spnkr") || id.contains("remote_det")) gate(a, "rockets", 1, null);
+                else if (id.contains("bfg")) gate(a, "cells", 100, null);
+                else if (id.contains("plasma") || id.contains("heat") || id.contains("microwave") || id.contains("gauss") || id.contains("ballista") || id.contains("precision") || id.contains("vortex") || id.contains("static") || id.contains("unmaker") || id.contains("accelerator") || id.contains("cycler") || id.contains("pulverizer")) gate(a, "cells", 25, null);
+                else if (id.contains("chaingun") || id.contains("minigun") || id.contains("machine") || id.contains("assault") || id.contains("full_auto") || id.contains("pistol") || id.contains("turret") || id.contains("har_") || id.contains("scope") || id.equals("pistols_akimbo") || id.contains("heavy_mg")) gate(a, "bullets", 25, null);
+            }
             if (n.startsWith("Blasphemous")) switch (a.id) {
                 case "debla_of_the_lights", "taranto_chant" -> gate(a, "fervour", 40, null); case "lorquiana", "tiento_thorns", "blood_miracle" -> gate(a, "fervour", 30, null); case "verdiales_parry" -> gate(a, "fervour", 20, null);
                 default -> { }
@@ -58,12 +69,41 @@ public final class ResourceFix {
         }
     }
 
+    static boolean isDoom(String n) { return n.startsWith("Doom") || n.startsWith("Brutal") || n.startsWith("DarkAges"); }
+    static boolean isHalo(String n) { return n.startsWith("Halo"); }
+    static boolean isHev(String n) { return n.startsWith("HalfLife") || n.startsWith("Entropy"); }
+
+    /** Halo energy shield / HEV battery: soaks damage before health. Returns the damage that still reaches health. */
+    public static float absorb(SlayerEntity e, float amt) {
+        String n = e.kit.getClass().getSimpleName();
+        if (isHalo(n)) {
+            int sh = get(e, "shield"); int max = (int) (e.getMaxHealth() * 0.7); if (max <= 0) return amt;
+            var d = e.getPersistentData(); if (!d.contains("rs_shield")) sh = max; d.putLong("rs_hitAt", e.level().getGameTime());
+            float soak = Math.min(sh, amt); d.putInt("rs_shield", (int) (sh - soak));
+            if (sh > 0 && sh - soak <= 0 && e.level() instanceof net.minecraft.server.level.ServerLevel l) { com.doomslayer.fx.Fx.flash(l, e.position().add(0, e.getBbHeight() * 0.6, 0), 0x80c8ff, 1.2f); com.doomslayer.fx.Fx.sound(l, e.position(), net.minecraft.sounds.SoundEvents.GLASS_BREAK, 1f, 1.4f); }
+            return amt - soak;
+        }
+        if (isHev(n)) {
+            int bat = get(e, "battery"); float soak = Math.min(bat / 2f, amt * 0.6f); add(e, "battery", -(int) (soak * 2)); return amt - soak;
+        }
+        return amt;
+    }
+    /** true while the energy shield still holds something (for the shimmer effect) */
+    public static boolean shieldUp(SlayerEntity e) { return isHalo(e.kit.getClass().getSimpleName()) && get(e, "shield") > 0; }
+
     /** per-tick regeneration (server) */
     public static void tick(SlayerEntity e) {
         String n = e.kit.getClass().getSimpleName(); int t = e.tickCount;
         if (e.kit instanceof ZeldaKits) { regen(e, "magic", t); regen(e, "arrows", t); regen(e, "bombs", t); }
         else if (n.equals("ZeroKatana")) regen(e, "chron", t);
         else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) regen(e, "stasis", t);
+        else if (isDoom(n)) { regen(e, "bullets", t); regen(e, "shells", t); regen(e, "rockets", t); regen(e, "cells", t); }
+        else if (isHev(n)) regen(e, "battery", t);
+        if (isHalo(n)) { // shield recharge: starts 5 s after the last hit, refills in ~3 s
+            var d = e.getPersistentData(); int max = (int) (e.getMaxHealth() * 0.7); int sh = get(e, "shield");
+            if (!d.contains("rs_shield")) d.putInt("rs_shield", max);
+            else if (sh < max && e.level().getGameTime() - d.getLong("rs_hitAt") > 100) { d.putInt("rs_shield", Math.min(max, sh + Math.max(1, max / 60))); if (sh == 0 && e.level() instanceof net.minecraft.server.level.ServerLevel l) com.doomslayer.fx.Fx.sound(l, e.position(), net.minecraft.sounds.SoundEvents.BEACON_POWER_SELECT, 0.6f, 1.8f); }
+        }
     }
     private static void regen(SlayerEntity e, String res, int t) { int[] r = RES.get(res); if (r[2] > 0 && t % r[2] == 0) add(e, res, r[3]); }
 
@@ -75,6 +115,8 @@ public final class ResourceFix {
         String n = kit.getClass().getSimpleName();
         if (kit instanceof ZeldaKits) { add(e, "magic", 4); add(e, "arrows", 3); add(e, "bombs", 1); if (Prog.strong(v)) for (String w : new String[] {"spear", "greatsword", "axe", "club"}) e.getPersistentData().putInt("rs_dur_" + w, Math.min(30, dur(e, w) + 8)); }
         if (n.startsWith("Blasphemous")) add(e, "fervour", 8);
+        if (isDoom(n)) { boolean big = Prog.strong(v); add(e, "bullets", big ? 40 : 15); add(e, "shells", big ? 4 : 1); add(e, "rockets", big ? 2 : 0); add(e, "cells", big ? 60 : 15); }
+        if (isHev(n)) add(e, "battery", 10);
         if (n.equals("ZeroKatana")) add(e, "chron", 1);
         if (n.equals("Doom3Marine") || n.equals("DoomRpgMarine") || n.equals("Doom3RoeMarine")) { add(e, "cube", 1); if (get(e, "cube") == 5) Prog.say(e, "Soul Cube charged", 0xff4a2a); }
     }
