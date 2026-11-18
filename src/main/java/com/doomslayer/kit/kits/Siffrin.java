@@ -51,11 +51,28 @@ public class Siffrin extends SlayerKit {
         return true;
     }
 
+    static void streak(SlayerEntity e, int type) {
+        var d = e.getPersistentData(); int cnt = d.getInt("sf_cnt");
+        if (d.getInt("sf_last") == type && cnt > 0) cnt++; else { d.putInt("sf_last", type); cnt = 1; }
+        if (cnt >= 5) { // jackpot: hits every enemy around, heals the party
+            cnt = 0;
+            for (LivingEntity f : Combat.around(e, e.position(), 9)) { Combat.damage(e, f, 14); Fx.beam(L(e), e.position().add(0, 1.2, 0), mid(f), STAR, 1f, 0.3); Fx.flash(L(e), mid(f), STAR, 0.8f); }
+            for (LivingEntity f : e.level().getEntitiesOfClass(LivingEntity.class, e.getBoundingBox().inflate(9), x -> x == e || x instanceof net.minecraft.world.entity.player.Player || x instanceof SlayerEntity)) f.heal(f.getMaxHealth() * 0.2f);
+            Fx.aura(L(e), e.position(), STAR, e.getBbHeight() * 1.3f, e.getBbWidth(), 34); Fx.ring(L(e), e.position().add(0, 0.2, 0), 4.5f, STAR, 1.6f, 30); snd(e, SoundEvents.PLAYER_LEVELUP, 1f, 1.5f);
+            Prog.say(e, "JACKPOT!", STAR);
+        }
+        d.putInt("sf_cnt", cnt);
+    }
+
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.3f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.5f; p.headX += 0.05f; p.bodyX += 0.04f; }
 
     @Override
     protected void defineAttacks(List<AttackDef> out) {
         defineBase(out);
+        for (AttackDef a : out) { // move types (rock / paper / scissors): five in a row of one type trigger a JACKPOT group attack
+            int type = switch (a.id) { case "knife_slash", "knife_stab", "rewind_strike" -> 0; case "memory_bolt", "star_shards", "loop_burst" -> 1; default -> 2; };
+            a.onEnd((e, t, n) -> streak(e, type));
+        }
         for (AttackDef a : out) if (a.id.equals("knife_slash")) a.anim = (p, t, ag) -> KU.strikePose(p, KU.remap(t, 5 / 14f), 0, 1f);
     }
 

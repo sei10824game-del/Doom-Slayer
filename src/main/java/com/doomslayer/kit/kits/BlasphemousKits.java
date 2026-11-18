@@ -34,17 +34,30 @@ public abstract class BlasphemousKits extends SlayerKit {
         scale = 1.03f; preferredRange = 3.5f; dmgMult = 1.1f;
     }
 
-    @Override public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) { return KU.defend(e, src, amt); }
+    /** parry/guard first; rosary bead 5 trims damage; getting hit forfeits the Sarmiento & Centella flawless bonus */
+    @Override public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) {
+        float r = KU.defend(e, src, amt);
+        if (r > 0) { e.getPersistentData().putLong("bl_hurtAt", e.level().getGameTime()); if (Prog.get(e, "bl_bead") >= 5) r *= 0.92f; }
+        return r;
+    }
+    @Override public void passive(SlayerEntity e) {
+        // Sarmiento & Centella: +30% damage while unhit for 10 s (lost when struck); rosary bead 4: slow regeneration
+        var cur = e.currentAttack(); boolean flawless = e.level().getGameTime() - e.getPersistentData().getLong("bl_hurtAt") > 200 && cur != null && cur.id.startsWith("rapier");
+        e.getPersistentData().putFloat("ds_tmpx", flawless ? 1.3f : 1f);
+        if (Prog.get(e, "bl_bead") >= 4 && e.tickCount % 60 == 0) e.heal(1.5f);
+        if (e.tickCount % 300 == 0 && e.getHealth() < e.getMaxHealth() * 0.45f) { e.heal(e.getMaxHealth() * 0.35f); snd(e, SoundEvents.GENERIC_DRINK, 0.9f, 0.7f); Fx.dustBurst(KU.L(e), GOLD, 1f, e.position().add(0, 1.2, 0), 14, 0.4); }
+    }
+    @Override public void onKill(SlayerEntity e, LivingEntity v) {
+        if (Prog.strong(v) && Prog.get(e, "bl_bead") < 5 && e.getRandom().nextFloat() < (Prog.boss(v) ? 1f : 0.4f)) { // rosary beads (up to 5) found from tough foes, auto-equipped
+            int b = Prog.add(e, "bl_bead", 1);
+            switch (b) { case 1 -> Prog.growDmg(e, 0.06f); case 2 -> Prog.growHp(e, 0.08); default -> { } }
+            Prog.say(e, "Rosary bead " + b + "/5: " + new String[] {"", "damage +6%", "max HP +8%", "fervour gain up", "slow regeneration", "damage taken -8%"}[b], 0xf0c060);
+        }
+        super.onKill(e, v);
+    }
 
     @Override public void idle(Pose p, SlayerEntity e, float age, float m) { p.rArmX = -0.35f + p.rArmX * 0.5f; p.rArmZ = 0.12f; p.rHandX = 0.6f; p.headX += 0.12f; p.bodyX += 0.08f; }
 
-    @Override
-    public void passive(SlayerEntity e) { // Bile Flask
-        if (e.tickCount % 300 == 0 && e.getHealth() < e.getMaxHealth() * 0.45f) {
-            e.heal(e.getMaxHealth() * 0.35f); snd(e, SoundEvents.GENERIC_DRINK, 0.9f, 0.7f);
-            Fx.dustBurst(KU.L(e), GOLD, 1f, e.position().add(0, 1.2, 0), 14, 0.4);
-        }
-    }
 
     /** shared: finishing move on a weakened enemy */
     static AttackDef execution(String weapon) {

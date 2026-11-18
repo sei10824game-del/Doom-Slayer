@@ -18,7 +18,7 @@ public final class ResourceFix {
             ent("magic", 32, 32, 30, 1), ent("arrows", 30, 30, 40, 1), ent("bombs", 10, 10, 200, 1),
             ent("fervour", 100, 30, 0, 0), ent("chron", 10, 10, 80, 1), ent("stasis", 3, 3, 400, 1), ent("cube", 5, 0, 0, 0),
             ent("bullets", 200, 200, 25, 5), ent("shells", 20, 20, 160, 1), ent("rockets", 10, 10, 300, 1), ent("cells", 250, 250, 40, 10),
-            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1));
+            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("tools", 6, 6, 600, 1));
     private static Map.Entry<String, int[]> ent(String k, int max, int init, int every, int amt) { return Map.entry(k, new int[] {max, init, every, amt}); }
     private static final Map<String, Object[]> ZELDA = Map.ofEntries(
             e("fire_rod", "magic", 5), e("ice_rod", "magic", 5), e("cane_somaria", "magic", 8), e("bombos", "magic", 16), e("ether", "magic", 16), e("quake", "magic", 16),
@@ -64,6 +64,11 @@ public final class ResourceFix {
                 default -> { }
             }
             if ((n.equals("Doom2016Slayer") || n.equals("DoomEternalSlayer") || n.equals("Doom2005Grimm") || n.equals("BrutalDoomMarine")) && a.id.startsWith("chainsaw")) gate(a, "fuel", 1, null); // chainsaw fuel
+            if (n.equals("Omori")) switch (a.id) { // JUICE pays for skills
+                case "trip", "stare" -> gate(a, "juice", 3, null); case "sad_poem", "heart", "angry_strike" -> gate(a, "juice", 4, null); case "black_space_hands", "final_strike" -> gate(a, "juice", 7, null); case "happy_song" -> gate(a, "juice", 5, null); case "sad_cry" -> gate(a, "juice", 2, null);
+                default -> { }
+            }
+            if (n.equals("Hornet") && (a.id.equals("tri_pin") || a.id.equals("straight_pin") || a.id.equals("caltrops") || a.id.equals("flintslate"))) gate(a, "tools", 1, "Tools spent - they refill on kills and rest"); // red tools have limited charges
             if (n.startsWith("Blasphemous")) switch (a.id) {
                 case "debla_of_the_lights", "taranto_chant" -> gate(a, "fervour", 40, null); case "lorquiana", "tiento_thorns", "blood_miracle" -> gate(a, "fervour", 30, null); case "verdiales_parry" -> gate(a, "fervour", 20, null);
                 default -> { }
@@ -102,6 +107,8 @@ public final class ResourceFix {
         if (n.equals("TotK")) regen(e, "zonai", t);
         if (e.kit instanceof ZeldaKits) { regen(e, "magic", t); regen(e, "arrows", t); regen(e, "bombs", t); }
         else if (n.equals("ZeroKatana")) regen(e, "chron", t);
+        else if (n.equals("Omori")) { regen(e, "juice", t); if (e.getHealth() / e.getMaxHealth() < 0.3f && t % 40 == 20) add(e, "juice", 1); } // SAD recovers JUICE faster
+        else if (n.equals("Hornet")) regen(e, "tools", t);
         else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) regen(e, "stasis", t);
         else if (isDoom(n)) { regen(e, "fuel", t); regen(e, "bullets", t); regen(e, "shells", t); regen(e, "rockets", t); regen(e, "cells", t); }
         else if (isHev(n)) regen(e, "battery", t);
@@ -114,7 +121,7 @@ public final class ResourceFix {
     private static void regen(SlayerEntity e, String res, int t) { int[] r = RES.get(res); if (r[2] > 0 && t % r[2] == 0) add(e, res, r[3]); }
 
     /** a slayer landed a hit: fervour for the Penitent */
-    public static void hit(SlayerEntity e) { if (e.kit.getClass().getSimpleName().startsWith("Blasphemous")) add(e, "fervour", 3); }
+    public static void hit(SlayerEntity e) { if (e.kit.getClass().getSimpleName().startsWith("Blasphemous")) add(e, "fervour", Prog.get(e, "bl_bead") >= 3 ? 5 : 3); }
 
     /** a slayer killed something: refills */
     public static void kill(SlayerKit kit, SlayerEntity e, LivingEntity v) {
@@ -125,6 +132,8 @@ public final class ResourceFix {
         if (isHev(n)) add(e, "battery", 10);
         if (n.equals("TotK") && Prog.strong(v)) add(e, "zonai", 2);
         if (n.equals("ZeroKatana")) add(e, "chron", 1);
+        if (n.equals("Omori")) add(e, "juice", 3);
+        if (n.equals("Hornet")) add(e, "tools", 1);
         if (n.equals("Doom3Marine") || n.equals("DoomRpgMarine") || n.equals("Doom3RoeMarine")) { add(e, "cube", 1); if (get(e, "cube") == 5) Prog.say(e, "Soul Cube charged", 0xff4a2a); }
     }
 }

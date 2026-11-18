@@ -49,6 +49,15 @@ public class Omori extends SlayerKit {
         return true;
     }
 
+    /** emotion stats: ANGRY takes more damage, SAD takes less and its damage also drains JUICE */
+    @Override
+    public float modifyDamage(SlayerEntity e, net.minecraft.world.damagesource.DamageSource src, float amt) {
+        float f = e.getHealth() / e.getMaxHealth();
+        if (f < 0.3f) { ResourceFix.add(e, "juice", -(int) (amt / 4)); return amt * 0.75f; }
+        if (f < 0.65f) return amt * 1.25f;
+        return amt;
+    }
+
     @Override
     public void idle(Pose p, SlayerEntity e, float age, float m) {
         p.rArmX = -0.2f + p.rArmX * 0.5f; p.rArmZ = 0.1f; p.rHandX = 0.4f; p.headX += 0.1f; p.bodyX += 0.05f; // listless slouch
@@ -59,6 +68,8 @@ public class Omori extends SlayerKit {
         // EMOTIONS: angry when hurt (strength), sad when critical (resistance), happy otherwise (slow regen)
         if (e.tickCount % 40 != 0) return;
         float f = e.getHealth() / e.getMaxHealth();
+        if (f < 0.3f) e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 0, false, false)); // SAD: defence up, speed down
+        else if (f >= 0.65f) e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 60, 0, false, false)); // HAPPY: speed up, accuracy down (wider spread)
         if (f < 0.3f) e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 0, false, false));
         else if (f < 0.65f) e.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 60, 0, false, false));
         else e.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 60, 0, false, false));
