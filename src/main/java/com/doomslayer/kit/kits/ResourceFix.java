@@ -18,7 +18,7 @@ public final class ResourceFix {
             ent("magic", 32, 32, 30, 1), ent("arrows", 30, 30, 40, 1), ent("bombs", 10, 10, 200, 1),
             ent("fervour", 100, 30, 0, 0), ent("chron", 10, 10, 80, 1), ent("stasis", 3, 3, 400, 1), ent("cube", 5, 0, 0, 0),
             ent("bullets", 200, 200, 25, 5), ent("shells", 20, 20, 160, 1), ent("rockets", 10, 10, 300, 1), ent("cells", 250, 250, 40, 10),
-            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("valor", 100, 0, 0, 0), ent("tools", 6, 6, 600, 1));
+            ent("shield", 100, 100, 0, 0), ent("battery", 100, 100, 60, 1), ent("zonai", 12, 12, 60, 1), ent("fuel", 3, 2, 600, 1), ent("juice", 20, 20, 40, 1), ent("valor", 100, 0, 0, 0), ent("echo", 6, 6, 40, 1), ent("senergy", 100, 100, 30, 1), ent("musou", 100, 0, 0, 0), ent("tools", 6, 6, 600, 1));
     private static Map.Entry<String, int[]> ent(String k, int max, int init, int every, int amt) { return Map.entry(k, new int[] {max, init, every, amt}); }
     private static final Map<String, Object[]> ZELDA = Map.ofEntries(
             e("fire_rod", "magic", 5), e("ice_rod", "magic", 5), e("cane_somaria", "magic", 8), e("bombos", "magic", 16), e("ether", "magic", 16), e("quake", "magic", 16),
@@ -49,6 +49,35 @@ public final class ResourceFix {
 
     public static void apply(SlayerKit kit, List<AttackDef> list) {
         String n = kit.getClass().getSimpleName();
+        if (n.equals("EchoesZelda")) for (AttackDef a : list) switch (a.id) { // echoes cost triangles; the Swordfighter form runs on its own energy
+            case "echo_boulder", "echo_tornado", "echo_sword_moblin", "echo_fire_wizzrobe", "echo_ice_wizzrobe" -> gate(a, "echo", 2, "No more echo triangles");
+            case "echo_fire_keese", "echo_octorok", "magic_shot" -> gate(a, "echo", 1, null);
+            case "swordfighter_form" -> gate(a, "senergy", 60, null);
+            case "sword_combo", "dash_attack" -> gate(a, "senergy", 8, "Swordfighter energy spent - collect orbs (kill foes)");
+            default -> { }
+        }
+        if (n.equals("HwLink") || n.equals("HwZelda") || n.equals("HwImpa") || n.equals("HwLana") || n.equals("HwLinkle") || n.equals("AocLink") || n.equals("AocZelda"))
+            for (AttackDef a : list) if (a.id.equals("musou")) gate(a, "musou", 80, "Musou gauge empty"); // Warriors: the Special gauge fills in battle
+        if (n.equals("Halo4Chief")) { // armour abilities: Hardlight Shield, Autosentry
+            list.add(gate(AttackDef.of("hardlight_shield").range(0, 20).cd(260).weight(2).dur(40).noLos()
+                    .tick((e, t, k) -> { if (k == 3) { KU.parryWindow(e, 40); e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE, 40, 2, false, false)); com.doomslayer.fx.Fx.sound((net.minecraft.server.level.ServerLevel) e.level(), e.position(), net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE, 1f, 1.8f); }
+                        if (k >= 3 && k < 40 && k % 6 == 0) com.doomslayer.fx.Fx.shield((net.minecraft.server.level.ServerLevel) e.level(), e.position().add(0, 1.2, 0).add(e.getViewVector(1f).scale(1.1)), e.getViewVector(1f), 0xff9a30, 1.2f); })
+                    .anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, .05f, .95f)); p.lArmX = -1.4f * c; p.rArmX = -0.8f * c; p.rootY -= 0.3f * c; }), "senergy", 0, null));
+            list.add(AttackDef.of("autosentry").range(4, 24).cd(500).weight(1).dur(70)
+                    .tick((e, t, k) -> {
+                        var d = e.getPersistentData();
+                        if (k == 6) { net.minecraft.world.phys.Vec3 f = e.getViewVector(1f); d.putDouble("rs_sx", e.getX() + f.x * 2); d.putDouble("rs_sy", e.getY() + 0.6); d.putDouble("rs_sz", e.getZ() + f.z * 2); com.doomslayer.fx.Fx.flash((net.minecraft.server.level.ServerLevel) e.level(), new net.minecraft.world.phys.Vec3(d.getDouble("rs_sx"), d.getDouble("rs_sy"), d.getDouble("rs_sz")), 0xffa040, 0.8f); }
+                        if (k >= 10 && k % 5 == 0) { net.minecraft.world.phys.Vec3 sp = new net.minecraft.world.phys.Vec3(d.getDouble("rs_sx"), d.getDouble("rs_sy"), d.getDouble("rs_sz")); LivingEntity best = null; double bd = 400; for (LivingEntity x : com.doomslayer.fx.Combat.around(e, sp, 20)) { double dd = x.distanceToSqr(sp.x, sp.y, sp.z); if (dd < bd) { bd = dd; best = x; } }
+                            if (best != null) { net.minecraft.world.phys.Vec3 dir = best.position().add(0, best.getBbHeight() * 0.6, 0).subtract(sp).normalize(); com.doomslayer.fx.Combat.hitscan(e, sp, dir, 22, 5f, 0, 0xffc060); } }
+                    }).anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, .05f, .25f)); p.rArmX = -0.6f * c; p.bodyX += 0.4f * c; p.rootY -= 0.8f * c; }));
+        }
+        if (n.equals("HalfLife2Gordon")) list.add(AttackDef.of("gravgun_catch").range(0, 30).noLos().cd(70).weight(6).dur(22).weapon("gravgun") // catch an incoming shot and fling it back
+                .when((e, t) -> !e.level().getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class, e.getBoundingBox().inflate(8), p -> !(p instanceof com.doomslayer.entity.SlayerProjectile)).isEmpty())
+                .tick((e, t, k) -> { if (k >= 4 && k < 14) for (var p : e.level().getEntitiesOfClass(net.minecraft.world.entity.projectile.Projectile.class, e.getBoundingBox().inflate(8), q -> !(q instanceof com.doomslayer.entity.SlayerProjectile))) {
+                        net.minecraft.world.phys.Vec3 dir = t != null ? t.position().add(0, t.getBbHeight() * 0.6, 0).subtract(p.position()).normalize() : e.getViewVector(1f); p.setDeltaMovement(dir.scale(Math.max(1.4, p.getDeltaMovement().length() * 1.5))); p.setOwner(e); p.hurtMarked = true;
+                        com.doomslayer.fx.Fx.beam((net.minecraft.server.level.ServerLevel) e.level(), e.position().add(0, 1.3, 0), p.position(), 0xffa53a, 0.8f, 0.3); com.doomslayer.fx.Fx.flash((net.minecraft.server.level.ServerLevel) e.level(), p.position(), 0xffa53a, 0.8f); } })
+                .anim((p, t, a) -> { float c = com.doomslayer.anim.Keys.bump(com.doomslayer.anim.Keys.win(t, .1f, .9f)); p.rArmX = -1.3f * c; p.lArmX = -1.5f * c; p.bodyX += 0.1f * c; }));
+        if (n.equals("HwLink")) { /* weapons: context-based, Link also fights with the Magic Rod and Hammer */ }
         if (n.equals("HaloInfiniteChief")) { // Valor: earned by kills, spent on a UNSC call-in (orbital strike) from the nearest FOB
             list.add(gate(AttackDef.of("valor_orbital_strike").range(6, 26).cd(300).weight(1).dur(44).weapon("ma40")
                     .tick((e, t, k) -> {
@@ -126,6 +155,7 @@ public final class ResourceFix {
         if (n.equals("TotK")) regen(e, "zonai", t);
         if (e.kit instanceof ZeldaKits) { regen(e, "magic", t); regen(e, "arrows", t); regen(e, "bombs", t); }
         else if (n.equals("ZeroKatana")) regen(e, "chron", t);
+        else if (n.equals("EchoesZelda")) { regen(e, "echo", t); regen(e, "senergy", t); }
         else if (n.equals("Omori")) { regen(e, "juice", t); if (e.getHealth() / e.getMaxHealth() < 0.3f && t % 40 == 20) add(e, "juice", 1); } // SAD recovers JUICE faster
         else if (n.equals("Hornet")) regen(e, "tools", t);
         else if (n.startsWith("Ds") || n.startsWith("DeadSpace")) regen(e, "stasis", t);
@@ -140,7 +170,7 @@ public final class ResourceFix {
     private static void regen(SlayerEntity e, String res, int t) { int[] r = RES.get(res); if (r[2] > 0 && t % r[2] == 0) add(e, res, r[3]); }
 
     /** a slayer landed a hit: fervour for the Penitent */
-    public static void hit(SlayerEntity e) { if (e.kit.getClass().getSimpleName().startsWith("Blasphemous")) add(e, "fervour", Prog.get(e, "bl_bead") >= 3 ? 5 : 3); }
+    public static void hit(SlayerEntity e) { String hn = e.kit.getClass().getSimpleName(); if (hn.startsWith("Hw") || hn.startsWith("Aoc")) add(e, "musou", 1); if (e.kit.getClass().getSimpleName().startsWith("Blasphemous")) add(e, "fervour", Prog.get(e, "bl_bead") >= 3 ? 5 : 3); }
 
     /** a slayer killed something: refills */
     public static void kill(SlayerKit kit, SlayerEntity e, LivingEntity v) {
@@ -151,6 +181,8 @@ public final class ResourceFix {
         if (isDoom(n)) { boolean big = Prog.strong(v); add(e, "bullets", big ? 40 : 15); add(e, "shells", big ? 4 : 1); add(e, "rockets", big ? 2 : 0); add(e, "cells", big ? 60 : 15); }
         if (isHev(n)) add(e, "battery", 10);
         if (n.equals("TotK") && Prog.strong(v)) add(e, "zonai", 2);
+        if (n.equals("EchoesZelda")) { add(e, "senergy", 20); add(e, "echo", 1); }
+        if (n.startsWith("Hw") || n.startsWith("Aoc")) add(e, "musou", 4);
         if (n.equals("ZeroKatana")) add(e, "chron", 1);
         if (n.equals("Omori")) add(e, "juice", 3);
         if (n.equals("Hornet")) add(e, "tools", 1);
