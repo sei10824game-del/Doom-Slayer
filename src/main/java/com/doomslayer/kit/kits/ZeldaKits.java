@@ -85,7 +85,7 @@ public abstract class ZeldaKits extends SlayerKit {
         this.look = look; this.atk = atk; this.fairies = fairies; this.fairy = fairies > 0;
         eggPrimary = look.dress || look.wolf ? look.tunic : (look.hat >= 0 ? look.hat : look.tunic); eggSecondary = look.hair == 0 ? look.tunic : look.under;
         maxHealth = hp; this.speed = speed; armor = 6; knockbackRes = 0.2; this.scale = scale; preferredRange = 6f; dmgMult = 1f;
-        idleWeaponR = "sword"; idleWeaponL = look.noShield ? null : "shield";
+        idleWeaponR = look.wolf ? null : "sword"; idleWeaponL = look.noShield ? null : "shield";
     }
 
     /** Piece of Heart (4 = +HP), Heart Container from bosses (+HP, full heal), Master Sword power from boss trophies */
@@ -171,6 +171,7 @@ public abstract class ZeldaKits extends SlayerKit {
     // ---------- attack factories ----------
     static final Set<String> TWO_HANDED = Set.of("spear", "greatsword", "axe", "club", "hammer", "biggoron", "ballchain");
     AttackDef base(String id, String w, double min, double max, int cd, int dur, int weight) {
+        if (look.wolf) return AttackDef.of(id).range((float) min, (float) max).cd(cd).dur(dur).weight(weight).weapons("none", "none"); // Wolf Link fights bare-pawed
         return AttackDef.of(id).range((float) min, (float) max).cd(cd).dur(dur).weight(weight).weapons("bow".equals(w) ? "none" : w, "bow".equals(w) ? "bow" : (look.noShield || w == null || TWO_HANDED.contains(w) ? null : "shield")); // two-handers leave the shield on the back
     }
     AttackDef melee(String id, double range, int cd, int dur, int[] hits, float dmg, double kb, double up, int rgb, K k, float frame, int weight) { return meleeW(id, "sword", range, cd, dur, hits, dmg, kb, up, rgb, k, frame, weight); }
