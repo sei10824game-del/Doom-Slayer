@@ -82,6 +82,8 @@ public final class Kits {
             new ZeldaKits.HwLana(),
             new ZeldaKits.HwLinkle(),
             new ZeldaKits.AocLink(),
-            new ZeldaKits.AocZelda()
+            new ZeldaKits.AocZelda(),
+            new EastwardKits.John(),
+            new EastwardKits.Sam()
     );
 }
